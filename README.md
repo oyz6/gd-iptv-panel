@@ -127,20 +127,16 @@ ip route get 8.8.8.8   # 看 src= 后面是什么 IP
 docker pull ghcr.io/<你的用户名>/gd-iptv-panel:latest
 ```
 
-Compose 改为：
 
 ```yaml
-services:
-  gd-iptv-panel:
-    image: ghcr.io/<你的用户名>/gd-iptv-panel:latest
-    container_name: gd-iptv-panel
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      - TZ=Asia/Shanghai
-      - IPTV_DATA_DIR=/data
-    volumes:
-      - ./app/data:/data
+docker run -d \
+  --name gd-iptv-panel \
+  --network host \
+  --restart unless-stopped \
+  -e TZ=Asia/Shanghai \
+  -e IPTV_DATA_DIR=/data \
+  -v $(pwd)/app/data:/data \
+  ghcr.io/oyz6/gd-iptv-panel:latest
 ```
 
 ---
