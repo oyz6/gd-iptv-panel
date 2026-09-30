@@ -107,3 +107,10 @@ jobs:
             ## gd-iptv-panel ${{ env.TAG }}
 
             Docker 镜像：
+
+            ```
+            docker pull ghcr.io/${{ github.repository_owner }}/gd-iptv-panel:${{ env.TAG }}
+            docker pull ghcr.io/${{ github.repository_owner }}/gd-iptv-panel:latest
+            ```
+
+            平台：`linux/amd64`、`linux/arm64`
