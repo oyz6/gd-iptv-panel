@@ -9,7 +9,7 @@ on:
       image_tag:
         description: '镜像标签'
         required: false
-        default: 'dev'
+        default: 'latest'
         type: string
 
 env:
