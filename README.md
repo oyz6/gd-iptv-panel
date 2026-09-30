@@ -1,6 +1,4 @@
-# gd-iptv-panel
-
-广东电信 IPTV 播放列表 + EPG 节目表面板。FastAPI + rtp2httpd，一键生成 M3U / XMLTV，内置链接健康检查与自动重建。
+# 广东电信 IPTV 播放列表 + EPG 节目表面板。FastAPI + rtp2httpd，一键生成 M3U / XMLTV，内置链接健康检查与自动重建。
 
 - 面板：`http://<host>:8686/`
 - 播放列表：`http://<host>:8686/playlist.m3u`
@@ -19,6 +17,7 @@
 - **链接健康检查**：定时抽样探测，失败率超阈值自动重建
 - **全字段可配置**：所有参数（含高级项）都可在面板里改
 - **多架构镜像**：`linux/amd64` + `linux/arm64`
+- **纯 SVG 图标 + 深浅色主题**：无 emoji 依赖，界面干净
 
 ---
 
@@ -78,8 +77,41 @@ INFO:     Uvicorn running on http://0.0.0.0:8686 (Press CTRL+C to quit)
 
 1. 登录后填写 **② IPTV 账号认证**：UserID、密码、MAC
 2. 检查 **③ 网络与代理** 中 rtp2httpd 地址
-3. 点击 **⚡ 一键生成**
+3. 点击 **一键生成**
 4. 用播放器导入：`http://<主机IP>:8686/playlist.m3u`
+
+---
+
+## 🖥 面板界面
+
+### 顶部按钮
+
+| 按钮 | 功能 |
+|---|---|
+| **刷新** | 重新加载页面（登录状态保留） |
+| **退出** | 退出登录，清除本地 token |
+| **主题切换** | 深色 ⇄ 浅色，图标实时反映当前状态（深色显示月亮，浅色显示太阳） |
+
+### 卡片布局
+
+| 区块 | 内容 |
+|---|---|
+| ① 面板登录 | 面板用户名 / 密码（改后下次登录生效） |
+| ② IPTV 账号认证 | UserID / 密码 / MAC / 源地址绑定 / IMEI / ADDRESS |
+| ③ 网络与代理 | rtp2httpd 地址 / 组播代理 / FCC 服务器 / XMLTV 地址 |
+| ④ 输出选项 | M3U / EPG / EPG gz 三个开关，EPG 天数范围 |
+| ⑤ 链接健康检查 | 启用开关 / 间隔 / 超时 / 样本数 / 阈值，及一键操作按钮 |
+| ⚙ 高级设置 | EPG 抓取、播放链接、外部 M3U、EPG 兜底、抓包兜底 |
+| ⑥ 播放地址 | M3U / EPG 一键复制、下载 |
+| ⑦ 运行日志 | 生成过程的实时 stdout |
+
+### 关于 FCC 服务器
+
+面板 ③ 里的 **默认 FCC 服务器** 输入框下方提供了互联网收集的：
+
+> [中国各地区 FCC 服务器地址汇总](https://rtp2httpd.com/reference/cn-fcc-collection)
+
+找到你所在地区、运营商匹配的地址填入即可。
 
 ---
 
@@ -306,6 +338,7 @@ sudo chown -R 1000:1000 app/data
 
 - 确认 MAC 与运营商绑定的机顶盒一致
 - 双网卡时尝试设置 `source_address`
+- 确认 `fcc_server` 填的是所在地区 / 运营商匹配的地址（参考面板 ③ 中的链接）
 - 查看生成日志里的具体错误码
 
 ### 播放列表能下载但播放器打不开
@@ -332,6 +365,13 @@ docker run -d --name gd-iptv-panel -p 8686:8686 \
 
 - 误报多：调大 `health_timeout`，调小 `health_max_samples`
 - 漏报多：调大 `health_max_samples`，调小 `health_fail_threshold`
+
+### 主题图标没变 / 按钮还是旧样式
+
+浏览器缓存。强制刷新：
+
+- Windows / Linux：`Ctrl + Shift + R`
+- macOS：`Cmd + Shift + R`
 
 ---
 
@@ -361,5 +401,3 @@ gd-iptv-panel/
 
 仅供个人学习研究使用，请遵守当地法律法规和运营商服务条款。
 ```
-
----
