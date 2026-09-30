@@ -1,4 +1,5 @@
-# 广东电信 IPTV 播放列表 + EPG 节目表面板。FastAPI + rtp2httpd，一键生成 M3U / XMLTV，内置链接健康检查与自动重建。
+# 广东电信 IPTV 播放列表 + EPG 节目表面板。
+> FastAPI + rtp2httpd，一键生成 M3U / XMLTV，内置链接健康检查与自动重建。
 
 - 面板：`http://<host>:8686/`
 - 播放列表：`http://<host>:8686/playlist.m3u`
