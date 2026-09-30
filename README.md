@@ -27,7 +27,7 @@
 ### 1. 前置条件
 
 - Linux 主机（amd64 / arm64）
-- Docker 24+ + Docker Compose v2
+- Docker 24+（Compose v2 可选）
 - 已部署 [rtp2httpd](https://github.com/tsl0922/rtp2httpd)（默认 `http://192.168.1.189:4022`）
 - 运营商绑定好的机顶盒 MAC 和 IPTV 账号
 
@@ -41,9 +41,24 @@ mkdir -p app/data
 
 ### 3. 启动
 
+**方式 A：使用 docker-compose（推荐）**
+
 ```bash
-docker compose up -d --build
+docker compose up -d
 docker compose logs -f gd-iptv-panel
+```
+
+**方式 B：使用 docker run**
+
+```bash
+docker run -d \
+  --name gd-iptv-panel \
+  --network host \
+  --restart unless-stopped \
+  -e TZ=Asia/Shanghai \
+  -e IPTV_DATA_DIR=/data \
+  -v $(pwd)/app/data:/data \
+  ghcr.io/oyz6/gd-iptv-panel:latest
 ```
 
 看到以下日志即成功：
@@ -99,6 +114,10 @@ ip route get 8.8.8.8   # 看 src= 后面是什么 IP
 
 如果 `src` 不是 IPTV 专线网卡的 IP，把它填到面板 ③。
 
+### 关于 `interface`
+
+旧配置里有 `interface` 字段（如 `enp6s18`），模型保留但前端不显示，默认空字符串。当前生成脚本不使用它，可忽略。
+
 ---
 
 ## 🔌 API 端点
@@ -123,12 +142,15 @@ ip route get 8.8.8.8   # 看 src= 后面是什么 IP
 
 ## 🐳 使用预构建镜像
 
+### 拉取镜像
+
 ```bash
-docker pull ghcr.io/<你的用户名>/gd-iptv-panel:latest
+docker pull ghcr.io/oyz6/gd-iptv-panel:latest
 ```
 
+### 启动容器
 
-```yaml
+```bash
 docker run -d \
   --name gd-iptv-panel \
   --network host \
@@ -137,6 +159,113 @@ docker run -d \
   -e IPTV_DATA_DIR=/data \
   -v $(pwd)/app/data:/data \
   ghcr.io/oyz6/gd-iptv-panel:latest
+```
+
+### 一行写法
+
+```bash
+docker run -d --name gd-iptv-panel --network host --restart unless-stopped -e TZ=Asia/Shanghai -e IPTV_DATA_DIR=/data -v /root/app/data:/data ghcr.io/oyz6/gd-iptv-panel:latest
+```
+
+> 注意 `-v` 参数用**绝对路径**更稳（如 `/root/app/data:/data`），避免 `$(pwd)` 受当前目录影响。
+
+### 使用 docker-compose
+
+新建 `docker-compose.yml`：
+
+```yaml
+services:
+  gd-iptv-panel:
+    image: ghcr.io/oyz6/gd-iptv-panel:latest
+    container_name: gd-iptv-panel
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Asia/Shanghai
+      - IPTV_DATA_DIR=/data
+    volumes:
+      - ./app/data:/data
+```
+
+启动：
+
+```bash
+docker compose up -d
+docker compose logs -f gd-iptv-panel
+```
+
+### GHCR 私有包的处理
+
+如果 `docker pull` 报 `unauthorized` 或 `denied`：
+
+**方式 1：登录 GHCR**
+
+```bash
+echo <你的GitHub_PAT> | docker login ghcr.io -u oyz6 --password-stdin
+```
+
+PAT 需要 `read:packages` 权限。
+
+**方式 2：把包改成公开**
+
+浏览器打开：
+
+```
+https://github.com/users/oyz6/packages/container/gd-iptv-panel/settings
+```
+
+→ 底部 Dangerous Zone → Change visibility → Public
+
+---
+
+## 🛠 常用管理命令
+
+```bash
+# 查看日志（实时）
+docker logs -f gd-iptv-panel
+
+# 查看最近 100 行
+docker logs --tail=100 gd-iptv-panel
+
+# 停止
+docker stop gd-iptv-panel
+
+# 启动
+docker start gd-iptv-panel
+
+# 重启
+docker restart gd-iptv-panel
+
+# 查看资源占用
+docker stats gd-iptv-panel
+
+# 删除容器（数据保留在宿主机）
+docker rm -f gd-iptv-panel
+
+# 更新到新版本
+docker pull ghcr.io/oyz6/gd-iptv-panel:latest
+docker rm -f gd-iptv-panel
+# 然后重新执行 docker run 或 docker compose up -d
+```
+
+---
+
+## 📂 数据目录
+
+| 路径 | 说明 |
+|---|---|
+| `app/data/config.json` | 面板配置（首次启动自动生成） |
+| `app/data/output/gdctiptv4.m3u` | 生成的播放列表 |
+| `app/data/output/gdctepg.xml` | 生成的 EPG |
+| `app/data/output/gdctepg.xml.gz` | EPG 压缩版（可选） |
+| `app/data/health_samples.json` | 健康检查样本 |
+| `app/data/output/exports/` | 外部源缓存 |
+
+**重置数据**：
+
+```bash
+rm -rf app/data/output app/data/health_samples.json
+# config.json 想留就留，想重置就一起删
 ```
 
 ---
@@ -148,13 +277,18 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Actions 会自动：
+Actions（**🐳 构建并发布 gd-iptv-panel**）会自动：
 
 1. 构建 `linux/amd64` + `linux/arm64` 镜像
-2. 推送到 `ghcr.io/<owner>/gd-iptv-panel:v1.0.0` 与 `:latest`
+2. 推送 4 个 tag：`v1.0.0`、`1.0.0`、`1.0`、`latest`
 3. 在 Releases 里创建版本并附带源码 zip / tar.gz
 
-也可手动：Actions → Release → Run workflow。
+**手动触发**（测试构建用）：
+
+GitHub → Actions → 🐳 构建并发布 gd-iptv-panel → Run workflow
+
+- `image_tag` 默认为 `dev`，可改成任何名字
+- 只推镜像，不创建 Release
 
 ---
 
@@ -179,6 +313,21 @@ sudo chown -R 1000:1000 app/data
 - 播放器需要能访问 `rtp2httpd_url` 里的 IP
 - 检查 M3U 里的 URL 是否指向正确的局域网地址
 
+### 端口冲突（host 网络模式下）
+
+```bash
+ss -tlnp | grep 8686
+```
+
+如果有其他进程占用 8686，先停掉它，或改用 bridge 网络：
+
+```bash
+docker run -d --name gd-iptv-panel -p 8686:8686 \
+  -e IPTV_DATA_DIR=/data \
+  -v /root/app/data:/data \
+  ghcr.io/oyz6/gd-iptv-panel:latest
+```
+
 ### 健康检查误报 / 漏报
 
 - 误报多：调大 `health_timeout`，调小 `health_max_samples`
@@ -190,16 +339,16 @@ sudo chown -R 1000:1000 app/data
 
 ```
 gd-iptv-panel/
-├── .github/workflows/release.yml
+├── .github/workflows/release.yml  # 多架构镜像构建 + Release
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 └── app/
-    ├── main.py
+    ├── main.py                     # FastAPI 路由入口
     ├── core/                       # 配置 / 认证 / 任务状态
     ├── services/                   # 生成 / 健康 / 调度
     ├── models/                     # API schema
-    ├── templates/gdctiptv.py.tmpl  # 生成模板
+    ├── templates/gdctiptv.py.tmpl  # 生成模板（占位符注入）
     ├── static/index.html           # 前端面板
     └── data/
         ├── config.example.json     # 初始模板
@@ -211,3 +360,6 @@ gd-iptv-panel/
 ## 📝 许可
 
 仅供个人学习研究使用，请遵守当地法律法规和运营商服务条款。
+```
+
+---
