@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>gd-iptv-panel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2314b8a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='7' width='20' height='15' rx='2' ry='2'/%3E%3Cpolyline points='17 2 12 7 7 2'/%3E%3C/svg%3E">
 <style>
 :root[data-theme="dark"]{
   --bg:#0b0f19;--panel:#111827;--panel-2:#0f172a;--border:rgba(255,255,255,.08);
@@ -31,8 +32,8 @@ body{min-height:100vh;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
 .shell{max-width:960px;margin:0 auto}
 .header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
 h1{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}
-h1 .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,#14b8a6,#0891b2);
-  box-shadow:0 0 12px var(--glow)}
+h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .sub{font-size:12.5px;color:var(--muted);margin-bottom:22px}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
   padding:20px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,.05)}
@@ -53,6 +54,8 @@ h1 .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135d
 .field input:focus,.field select:focus,.field textarea:focus{
   border-color:var(--primary);box-shadow:0 0 0 3px var(--glow)}
 .field small{font-size:11px;color:var(--muted);line-height:1.4}
+.field small a{color:var(--primary);text-decoration:underline;text-underline-offset:2px}
+.field small a:hover{color:var(--primary-h)}
 .check-row{display:flex;flex-wrap:wrap;gap:14px;margin:4px 0 12px}
 .check-row label{display:inline-flex;align-items:center;gap:7px;font-size:13px;
   color:var(--text);cursor:pointer}
@@ -108,20 +111,29 @@ details.advanced>summary{list-style:none;cursor:pointer;font-size:12px;color:var
   background:var(--panel);border:1px solid var(--border);border-radius:14px;
   display:flex;align-items:center;gap:8px;transition:.15s}
 details.advanced>summary::-webkit-details-marker{display:none}
-details.advanced>summary::before{content:'▶';font-size:10px;transition:.2s}
+details.advanced>summary .chev{width:12px;height:12px;stroke:var(--muted);fill:none;
+  stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:.2s;flex-shrink:0}
 details.advanced[open]>summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
-details.advanced[open]>summary::before{transform:rotate(90deg)}
+details.advanced[open]>summary .chev{transform:rotate(90deg)}
 .advanced-body{padding:16px 20px;background:var(--panel);border:1px solid var(--border);
   border-top:none;border-bottom-left-radius:14px;border-bottom-right-radius:14px}
-.advanced-body .card{background:var(--panel-2);margin-bottom:12px;padding:16px;
-  box-shadow:none}
+.advanced-body .card{background:var(--panel-2);margin-bottom:12px;padding:16px;box-shadow:none}
 .advanced-body .card:last-child{margin-bottom:0}
+
+/* ── SVG 图标通用 ── */
+.icon{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;vertical-align:middle}
+.icon-sm{width:14px;height:14px}
+.icon-lg{width:18px;height:18px}
 
 .login-overlay{position:fixed;inset:0;background:var(--bg-grad);z-index:1000;
   display:flex;align-items:center;justify-content:center;padding:20px}
 .login-overlay.hidden{display:none}
 .login-box{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--border);
   border-radius:18px;padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.login-box .login-logo{display:flex;justify-content:center;margin-bottom:14px}
+.login-box .login-logo svg{width:44px;height:44px;stroke:var(--primary);fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .login-box h2{font-size:20px;font-weight:800;text-align:center;margin-bottom:6px;color:var(--text)}
 .login-box p{font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:22px}
 .login-box input{width:100%;padding:11px 14px;background:var(--input);border:1px solid var(--input-b);
@@ -133,27 +145,45 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
 </head>
 <body>
 
+<!-- 登录层 -->
 <div class="login-overlay hidden" id="loginOverlay">
   <div class="login-box">
-    <h2>🔒 gd-iptv-panel</h2>
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+    </div>
+    <h2>gd-iptv-panel</h2>
     <p>请输入账号密码登录</p>
     <input id="loginUser" placeholder="用户名" autocomplete="username">
     <input id="loginPass" type="password" placeholder="密码" autocomplete="current-password">
     <div class="err" id="loginErr"></div>
-    <button class="btn btn-primary" id="loginBtn">登 录</button>
+    <button class="btn btn-primary" id="loginBtn">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      登 录
+    </button>
   </div>
 </div>
 
 <div class="shell" id="app" style="display:none">
   <div class="header">
-    <h1><span class="dot"></span>gd-iptv-panel</h1>
+    <h1>
+      <svg class="logo-icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+      gd-iptv-panel
+    </h1>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-icon" id="themeToggle" title="切换主题">🌙</button>
-      <button class="btn btn-ghost btn-icon" id="logoutBtn" title="退出登录">🚪</button>
+      <button class="btn btn-ghost btn-icon" id="themeToggle" title="切换主题">
+        <!-- 月亮（默认深色主题下显示） -->
+        <svg class="icon-lg" viewBox="0 0 24 24" id="iconMoon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <!-- 太阳（浅色主题下显示） -->
+        <svg class="icon-lg" viewBox="0 0 24 24" id="iconSun" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="logoutBtn" title="退出登录">
+        <svg class="icon-lg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
   </div>
   <p class="sub">广东电信 IPTV 配置中心 · 生成 M3U · 一键复制</p>
 
+  <!-- ① 面板登录 -->
   <div class="card">
     <h2>① 面板登录</h2>
     <div class="row">
@@ -169,6 +199,7 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- ② IPTV 账号认证 -->
   <div class="card">
     <h2>② IPTV 账号认证</h2>
     <div class="row">
@@ -205,6 +236,7 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- ③ 网络与代理 -->
   <div class="card">
     <h2>③ 网络与代理</h2>
     <div class="row">
@@ -221,6 +253,11 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
       <div class="field">
         <label>默认 FCC 服务器</label>
         <input id="fcc_server" placeholder="183.59.156.166:8027">
+        <small>
+          可参考
+          <a href="https://rtp2httpd.com/reference/cn-fcc-collection" target="_blank" rel="noopener noreferrer">中国各地区 FCC 服务器地址汇总</a>
+          查找本地可用地址（8027 = 华为平台，15970 = 中兴/烽火平台）
+        </small>
       </div>
       <div class="field">
         <label>M3U 内 XMLTV 地址</label>
@@ -229,6 +266,7 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- ④ 输出选项 -->
   <div class="card">
     <h2>④ 输出选项</h2>
     <div class="check-row">
@@ -248,6 +286,7 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- ⑤ 链接健康检查 -->
   <div class="card">
     <h2>⑤ 链接健康检查</h2>
     <div class="row" style="align-items:center">
@@ -279,9 +318,18 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
       </div>
     </div>
     <div class="actions">
-      <button class="btn btn-primary" id="saveBtn">💾 保存配置</button>
-      <button class="btn btn-primary" id="genBtn">⚡ 一键生成</button>
-      <button class="btn btn-ghost" id="healthBtn">🩺 立即健康检查</button>
+      <button class="btn btn-primary" id="saveBtn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        保存配置
+      </button>
+      <button class="btn btn-primary" id="genBtn">
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        一键生成
+      </button>
+      <button class="btn btn-ghost" id="healthBtn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        立即健康检查
+      </button>
     </div>
     <div class="status-row">
       <span class="status-dot" id="statusDot"></span>
@@ -289,8 +337,12 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
     </div>
   </div>
 
+  <!-- 高级设置 -->
   <details class="advanced">
-    <summary>⚙ 高级设置</summary>
+    <summary>
+      <svg class="chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      高级设置
+    </summary>
     <div class="advanced-body">
 
       <div class="card">
@@ -426,19 +478,30 @@ details.advanced[open]>summary::before{transform:rotate(90deg)}
     </div>
   </details>
 
+  <!-- ⑥ 播放地址 -->
   <div class="card">
     <h2>⑥ 播放地址（一键复制）</h2>
     <div class="url-box">
       <code id="m3uUrl">尚未生成</code>
-      <button class="btn btn-sm btn-primary" id="copyM3u">复制</button>
-      <a class="btn btn-sm btn-ghost" id="dlM3u" href="/playlist.m3u" download>下载</a>
+      <button class="btn btn-sm btn-primary" id="copyM3u">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制
+      </button>
+      <a class="btn btn-sm btn-ghost" id="dlM3u" href="/playlist.m3u" download>
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        下载
+      </a>
     </div>
     <div class="url-box">
       <code id="epgUrl">尚未生成</code>
-      <button class="btn btn-sm btn-primary" id="copyEpg">复制</button>
+      <button class="btn btn-sm btn-primary" id="copyEpg">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制
+      </button>
     </div>
   </div>
 
+  <!-- ⑦ 运行日志 -->
   <div class="card">
     <h2>⑦ 运行日志</h2>
     <div class="log" id="log">等待操作…</div>
@@ -489,7 +552,10 @@ const FIELDS = {
 /* ============ 主题 ============ */
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
-  $('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+  // 深色主题下显示月亮（表示当前是深色，点击切浅色）；
+  // 浅色主题下显示太阳（表示当前是浅色，点击切深色）
+  $('iconMoon').style.display = theme === 'dark' ? '' : 'none';
+  $('iconSun').style.display  = theme === 'dark' ? 'none' : '';
   localStorage.setItem(THEME_KEY, theme);
 }
 function initTheme(){
@@ -571,7 +637,7 @@ async function doLogin(){
     return;
   }
   const btn = $('loginBtn');
-  btn.disabled = true; btn.textContent = '验证中…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 验证中…';
   try {
     const r = await fetch('/api/login', {
       method: 'POST',
@@ -589,7 +655,8 @@ async function doLogin(){
   } catch (e) {
     $('loginErr').textContent = '连接失败：' + e.message;
   } finally {
-    btn.disabled = false; btn.textContent = '登 录';
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> 登 录';
   }
 }
 $('loginBtn').addEventListener('click', doLogin);
@@ -645,6 +712,8 @@ async function saveConfig(){
 
 /* ============ 一键生成 ============ */
 let generating = false;
+
+const GEN_BTN_HTML = '<svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 一键生成';
 
 async function generate(){
   if (generating) { toast('已有生成任务在进行中', 'error'); return; }
@@ -716,7 +785,7 @@ async function generate(){
   } finally {
     generating = false;
     $('genBtn').disabled = false;
-    $('genBtn').textContent = '⚡ 一键生成';
+    $('genBtn').innerHTML = GEN_BTN_HTML;
   }
 }
 
@@ -724,6 +793,8 @@ $('saveBtn').addEventListener('click', saveConfig);
 $('genBtn').addEventListener('click', generate);
 
 /* ============ 手动健康检查 ============ */
+const HEALTH_BTN_HTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> 立即健康检查';
+
 $('healthBtn').addEventListener('click', async () => {
   const btn = $('healthBtn');
   btn.disabled = true; btn.textContent = '检查中…';
@@ -747,7 +818,8 @@ $('healthBtn').addEventListener('click', async () => {
     if (e instanceof AuthError) toast('登录已失效，请重新登录', 'error');
     else { toast('检查失败：' + e.message, 'error'); log('✗ ' + e.message, 'err'); }
   } finally {
-    btn.disabled = false; btn.textContent = '🩺 立即健康检查';
+    btn.disabled = false;
+    btn.innerHTML = HEALTH_BTN_HTML;
   }
 });
 
