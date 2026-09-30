@@ -1,0 +1,60 @@
+{
+  "panel_username": "admin",
+  "panel_password": "admin",
+
+  "user_id": "XXXXXXXXX",
+  "password": "XXXXXXXX",
+  "mac": "a4:40:27:74:42:a4",
+  "imei": "",
+  "address": "",
+  "source_address": "",
+
+  "rtp2httpd_url": "http://192.168.1.189:4022",
+  "multicast_proxy_url": "http://192.168.1.189:4022",
+  "fcc_server": "183.59.156.166:8027",
+  "epg_xmltv_url": "/epg.xml",
+
+  "generate_rtp2httpd_rtp": true,
+  "generate_xmltv": true,
+  "generate_xmltv_gz": false,
+
+  "eds_url": "http://eds.iptv.gd.cn:8082/EDS/jsp/AuthenticationURL",
+  "http_timeout": 10,
+  "epg_workers": 16,
+  "epg_days_before": 7,
+  "epg_days_after": 2,
+
+  "rtp2httpd_fcc_type": "telecom",
+  "include_fec_in_rtp_urls": true,
+  "use_default_fcc_for_missing_channels": true,
+  "add_fcc_to_extinf_attributes": false,
+  "include_catchup": true,
+  "rtp2httpd_catchup_seek_mode": "",
+  "rtp2httpd_catchup_seek_offset": "",
+  "playseek_template": "${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}",
+
+  "merge_external_m3u": true,
+  "external_m3u_url": "https://github.nezha.loc.cc/taoiptv.m3u",
+  "external_m3u_cache": "exports/external_hkat_cache.m3u",
+  "external_m3u_timeout": 15,
+  "external_group_min_match": 3,
+  "external_group_titles_json": "{\"iptv源\": \"iptv源\", \"网络源\": \"网络源\"}",
+
+  "fill_empty_epg_from_same_multicast": true,
+  "fill_empty_epg_from_channel_alias": true,
+  "fill_empty_epg_with_placeholder": true,
+  "placeholder_epg_title": "暂无节目表",
+  "placeholder_epg_desc": "运营商接口未提供该频道节目表",
+  "placeholder_epg_interval_hours": 6,
+  "epg_alias_suffixes_json": "[\"时移专用\"]",
+  "epg_alias_rules_json": "{\"CCTV1-1M开机标清\": [\"CCTV-1综合\"]}",
+  "no_epg_fallback_channel_names_json": "[\"CCTV4K-25P\", \"CCTV4K-50P\"]",
+
+  "capture_fallback_json": "exports/pcap1_channels.json",
+
+  "schedule_enabled": true,
+  "schedule_interval_hours": 1,
+  "health_timeout": 6,
+  "health_max_samples": 6,
+  "health_fail_threshold": 0.6
+}

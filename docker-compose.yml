@@ -1,0 +1,12 @@
+services:
+  gd-iptv-panel:
+    build: .
+    image: gd-iptv-panel:local
+    container_name: gd-iptv-panel
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Asia/Shanghai
+      - IPTV_DATA_DIR=/data
+    volumes:
+      - ./app/data:/data
