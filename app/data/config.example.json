@@ -2,9 +2,9 @@
   "panel_username": "admin",
   "panel_password": "admin",
 
-  "user_id": "XXXXXXXXX",
-  "password": "XXXXXXXX",
-  "mac": "a4:40:27:74:42:a4",
+  "user_id": "",
+  "password": "",
+  "mac": "d4:40:27:24:42:d4",
   "imei": "",
   "address": "",
   "source_address": "",
