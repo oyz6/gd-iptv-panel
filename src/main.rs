@@ -282,7 +282,7 @@ fn to_xmltv<R: Read>(channels: Vec<Channel>, extra: Option<EventReader<R>>) -> R
 
                     let mut tag = XmlWriteEvent::start_element(local);
                     for attr in attributes.iter() {
-                        tag = tag.attr(&attr.name.local_name, &attr.value);
+                        tag = tag.attr(attr.name.local_name.as_str(), &attr.value);
                     }
                     writer.write(tag)?;
                 }
