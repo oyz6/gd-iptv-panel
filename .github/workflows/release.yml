@@ -1,0 +1,137 @@
+name: 🐳 构建 Docker 镜像
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: '镜像标签'
+        required: false
+        default: 'latest'
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/gd-iptv-panel
+
+jobs:
+  build-and-push:
+    name: 构建并推送镜像
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 配置 QEMU（多架构支持）
+        uses: docker/setup-qemu-action@v3
+
+      - name: 配置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GitHub Packages
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 提取镜像元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ inputs.image_tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
+      - name: 构建并推送多架构镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 输出镜像信息
+        run: |
+          echo "=================================================="
+          echo "已推送镜像："
+          echo "${{ steps.meta.outputs.tags }}"
+          echo "=================================================="
+
+      - name: 清理历史运行记录
+        if: always()
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: ${{ github.workflow }}
+          retain_days: 0
+          keep_minimum_runs: 1
+
+  release:
+    name: 创建 Release
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 打包源码压缩包
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          mkdir -p /tmp/pack/gd-iptv-panel
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='target' \
+            --exclude='data' \
+            --exclude='config.json' \
+            --exclude='__pycache__' \
+            ./ /tmp/pack/gd-iptv-panel/
+          cd /tmp/pack
+          zip -r gd-iptv-panel-${TAG}.zip gd-iptv-panel
+          tar -czf gd-iptv-panel-${TAG}.tar.gz gd-iptv-panel
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          generate_release_notes: true
+          files: |
+            /tmp/pack/gd-iptv-panel-${{ env.TAG }}.zip
+            /tmp/pack/gd-iptv-panel-${{ env.TAG }}.tar.gz
+          body: |
+            ## gd-iptv-panel ${{ env.TAG }}
+
+            **单 Rust 二进制**，内置 RTSP/UDP 代理，端口 `4022`。
+
+            ### 🐳 Docker 镜像
+
+            ```
+            docker pull ghcr.io/${{ github.repository_owner }}/gd-iptv-panel:${{ env.TAG }}
+            docker pull ghcr.io/${{ github.repository_owner }}/gd-iptv-panel:latest
+            ```
+
+            平台：`linux/amd64`、`linux/arm64`
