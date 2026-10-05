@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPTV 面板</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2314b8a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='7' width='20' height='15' rx='2' ry='2'/%3E%3Cpolyline points='17 2 12 7 7 2'/%3E%3C/svg%3E">
+<style>
+:root[data-theme="dark"]{
+  --bg:#0b0f19;--panel:#111827;--panel-2:#0f172a;--border:rgba(255,255,255,.08);
+  --text:#f1f5f9;--muted:#94a3b8;--primary:#14b8a6;--primary-h:#2dd4bf;
+  --danger:#ef4444;--success:#10b981;--input:#1e293b;--input-b:#334155;
+  --glow:rgba(20,184,166,.25);
+  --bg-grad:radial-gradient(circle at top left,rgba(20,184,166,.12),transparent 45%),
+            radial-gradient(circle at right 20%,rgba(14,165,233,.08),transparent 40%),
+            linear-gradient(180deg,#0b0f19 0%,#030712 100%);
+  --code:#0a0e17;--code-text:#cbd5e1;
+}
+:root[data-theme="light"]{
+  --bg:#f8fafc;--panel:#ffffff;--panel-2:#f1f5f9;--border:rgba(15,23,42,.08);
+  --text:#0f172a;--muted:#64748b;--primary:#0d9488;--primary-h:#0f766e;
+  --danger:#dc2626;--success:#059669;--input:#f8fafc;--input-b:#cbd5e1;
+  --glow:rgba(13,148,136,.18);
+  --bg-grad:radial-gradient(circle at top left,rgba(13,148,136,.10),transparent 45%),
+            radial-gradient(circle at right 20%,rgba(2,132,199,.08),transparent 40%),
+            linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);
+  --code:#f1f5f9;--code-text:#334155;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg-grad);color:var(--text);-webkit-font-smoothing:antialiased;padding:20px}
+.shell{max-width:960px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin-bottom:8px;flex-wrap:wrap}
+h1{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}
+h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sub{font-size:12.5px;color:var(--muted);margin-bottom:22px}
+.header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn-xs{padding:7px 12px;font-size:12px;border-radius:9px;
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+  font-family:inherit;font-weight:600;cursor:pointer;transition:.15s}
+.btn-xs:hover{background:var(--panel);transform:translateY(-1px)}
+.btn-xs svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.theme-toggle{width:34px;height:34px;padding:0;border-radius:9px;
+  background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:.15s;font-family:inherit}
+.theme-toggle:hover{background:var(--panel);transform:translateY(-1px)}
+.theme-toggle svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.theme-toggle .moon-icon{display:block}
+.theme-toggle .sun-icon{display:none}
+:root[data-theme="light"] .theme-toggle .moon-icon{display:none}
+:root[data-theme="light"] .theme-toggle .sun-icon{display:block}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:20px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,.05)}
+.card h2{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+  margin-bottom:16px;font-weight:700}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:640px){.row{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--muted);font-weight:600}
+.field input,.field select{padding:10px 12px;background:var(--input);
+  border:1px solid var(--input-b);border-radius:9px;color:var(--text);
+  font-size:13.5px;font-family:inherit;outline:none;transition:.15s;width:100%}
+.field input:focus,.field select:focus{border-color:var(--primary);
+  box-shadow:0 0 0 3px var(--glow)}
+.field small{font-size:11px;color:var(--muted);line-height:1.5;display:block}
+.field small a{color:var(--primary);text-decoration:underline;text-underline-offset:2px}
+.field small a:hover{color:var(--primary-h)}
+.field small code{background:var(--input);padding:1px 5px;border-radius:4px;
+  font-family:ui-monospace,Consolas,monospace;font-size:11px;
+  color:var(--primary-h);border:1px solid var(--input-b)}
+.check-row{display:flex;flex-wrap:wrap;gap:14px;margin:4px 0 12px}
+.check-row label{display:inline-flex;align-items:center;gap:7px;font-size:13px;
+  color:var(--text);cursor:pointer}
+.check-row input{width:15px;height:15px;accent-color:var(--primary)}
+.btn{appearance:none;border:0;border-radius:10px;padding:10px 18px;font-size:13.5px;
+  font-weight:700;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;
+  gap:7px;font-family:inherit}
+.btn:hover{transform:translateY(-1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary{color:#fff;background:linear-gradient(135deg,var(--primary),#0891b2);
+  box-shadow:0 4px 14px var(--glow)}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.url-box{background:var(--input);border:1px solid var(--input-b);border-radius:10px;
+  padding:12px 14px;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.url-box code{flex:1;min-width:0;color:var(--primary-h);
+  font-family:ui-monospace,Consolas,monospace;font-size:12.5px;word-break:break-all;
+  line-height:1.5;cursor:text;user-select:all;padding:4px 0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(24px);
+  padding:11px 18px;border-radius:12px;background:var(--panel);
+  border:1px solid var(--border);font-size:13.5px;font-weight:600;
+  box-shadow:0 20px 50px rgba(0,0,0,.3);opacity:0;transition:.3s;z-index:100;
+  pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:rgba(16,185,129,.5)}
+.toast.error{border-color:rgba(239,68,68,.5);color:var(--danger)}
+.spinner{display:inline-block;width:12px;height:12px;
+  border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;
+  animation:spin .8s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.icon{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;vertical-align:middle}
+.icon-sm{width:14px;height:14px}
+
+.login-overlay{position:fixed;inset:0;background:var(--bg-grad);z-index:1000;
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.login-overlay.hidden{display:none}
+.login-box{width:100%;max-width:380px;background:var(--panel);
+  border:1px solid var(--border);border-radius:18px;padding:32px 28px;
+  box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.login-box .login-logo{display:flex;justify-content:center;margin-bottom:14px}
+.login-box .login-logo svg{width:44px;height:44px;stroke:var(--primary);fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.login-box h2{font-size:20px;font-weight:800;text-align:center;
+  margin-bottom:6px;color:var(--text)}
+.login-box p{font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:22px}
+.login-box input{width:100%;padding:11px 14px;background:var(--input);
+  border:1px solid var(--input-b);border-radius:10px;color:var(--text);
+  font-size:14px;font-family:inherit;outline:none;margin-bottom:12px}
+.login-box input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--glow)}
+.login-box .err{color:var(--danger);font-size:12.5px;margin-bottom:10px;
+  min-height:16px;text-align:center}
+.login-box .btn{width:100%;justify-content:center;padding:12px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<!-- 登录层 -->
+<div class="login-overlay hidden" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+    </div>
+    <h2>🔒 IPTV 面板</h2>
+    <p>请输入账号密码登录</p>
+    <input id="loginUser" placeholder="用户名" autocomplete="username">
+    <input id="loginPass" type="password" placeholder="密码" autocomplete="current-password">
+    <div class="err" id="loginErr"></div>
+    <button class="btn btn-primary" id="loginBtn">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      登 录
+    </button>
+  </div>
+</div>
+
+<div class="shell" id="app" style="display:none">
+  <div class="header">
+    <h1>
+      <svg class="logo-icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+      IPTV 配置中心
+    </h1>
+    <div class="header-right">
+      <button id="refreshBtn" class="btn-xs" title="刷新页面">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        <span>刷新</span>
+      </button>
+      <button id="logoutBtn" class="btn-xs" title="退出登录">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        <span>退出</span>
+      </button>
+      <button id="themeToggle" class="theme-toggle" aria-label="切换主题" title="切换主题">
+        <svg class="sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      </button>
+    </div>
+  </div>
+  <p class="sub">广东电信 IPTV 配置中心 · 单二进制 · 内置代理</p>
+
+  <!-- ① 面板登录 -->
+  <div class="card">
+    <h2>① 面板登录</h2>
+    <div class="row">
+      <div class="field">
+        <label>面板用户名</label>
+        <input id="admin_user" placeholder="admin">
+      </div>
+      <div class="field">
+        <label>面板密码</label>
+        <input id="admin_pass" type="password" placeholder="admin">
+        <small>修改后下次登录生效（当前会话保持）</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② IPTV 账号认证 -->
+  <div class="card">
+    <h2>② IPTV 账号认证</h2>
+    <div class="row">
+      <div class="field">
+        <label>IPTV 账号 (UserID)</label>
+        <input id="user" placeholder="07551234567">
+      </div>
+      <div class="field">
+        <label>IPTV 密码</label>
+        <input id="passwd" type="password" placeholder="12345678">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>机顶盒 MAC</label>
+        <input id="mac" placeholder="a3:11:22:33:44:b3">
+        <small>必须与运营商绑定的机顶盒一致</small>
+      </div>
+      <div class="field">
+        <label>接口（可选）</label>
+        <input id="interface" placeholder="eth0 / enp6s18 / 留空">
+        <small>多网卡时指定认证请求的出站接口</small>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>IMEI（可选）</label>
+        <input id="imei" placeholder="">
+      </div>
+      <div class="field">
+        <label>ADDRESS（可选）</label>
+        <input id="address" placeholder="">
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 内置代理 -->
+  <div class="card">
+    <h2>③ 内置代理</h2>
+
+    <!-- FCC 服务器 -->
+    <div class="row">
+      <div class="field">
+        <label>FCC 服务器地址</label>
+        <input id="fcc_server" placeholder="例如 115.233.40.137:8027">
+        <small>
+          FCC 快速换台服务器，格式为 <code>IP:端口</code>。留空则不启用 FCC。
+          可参考
+          <a href="https://rtp2httpd.com/reference/cn-fcc-collection" target="_blank" rel="noopener noreferrer">中国各地区 FCC 服务器地址汇总</a>
+          查找本地可用地址。
+        </small>
+        <small style="margin-top:4px">
+          通常 <code>8027</code> 端口为华为平台，<code>15970</code> 端口为中兴 / 烽火平台。
+        </small>
+      </div>
+      <div class="field">
+        <label>FCC 协议类型</label>
+        <input id="fcc_type" placeholder="telecom">
+        <small>默认 <code>telecom</code>；华为平台可试 <code>huawei</code></small>
+      </div>
+    </div>
+
+    <div class="check-row">
+      <label><input type="checkbox" id="udp_proxy"> UDP 组播代理（igmp:// → http:///rtp/）</label>
+      <label><input type="checkbox" id="rtsp_proxy"> RTSP 代理（rtsp:// → http:///rtsp/）</label>
+    </div>
+    <div class="check-row">
+      <label><input type="checkbox" id="include_catchup"> 生成时移回看（catchup）</label>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>PLAYSEEK 模板</label>
+        <input id="playseek_template" placeholder="${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}">
+        <small>时移回看的时间占位符</small>
+      </div>
+      <div class="field"></div>
+    </div>
+  </div>
+
+  <!-- ④ 输出选项 -->
+  <div class="card">
+    <h2>④ 输出选项</h2>
+    <div class="check-row">
+      <label><input type="checkbox" id="enable_playlist"> 生成播放列表</label>
+      <label><input type="checkbox" id="enable_xmltv"> 生成 EPG (XMLTV)</label>
+      <label><input type="checkbox" id="enable_logo"> 频道图标</label>
+      <label><input type="checkbox" id="enable_top_channels"> 置顶频道副本</label>
+    </div>
+  </div>
+
+  <!-- ⑤ 外部 M3U 源 -->
+  <div class="card">
+    <h2>⑤ 外部 M3U 源</h2>
+    <div class="check-row">
+      <label><input type="checkbox" id="external_enabled"> 启用外部源</label>
+      <label><input type="checkbox" id="external_merge"> 合并到播放列表</label>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>外部 M3U 地址</label>
+        <input id="external_url" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label>下载超时（秒）</label>
+        <input id="external_timeout" type="number" min="3" max="120" value="15">
+      </div>
+    </div>
+  </div>
+
+  <!-- 保存按钮 -->
+  <div class="card">
+    <div class="actions">
+      <button class="btn btn-primary" id="saveBtn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        保存配置
+      </button>
+    </div>
+  </div>
+
+  <!-- ⑥ 播放地址 -->
+  <div class="card">
+    <h2>⑥ 播放地址</h2>
+    <div class="url-box">
+      <code id="m3uUrl" title="点击选中，Ctrl+C 复制">尚未生成</code>
+      <button class="btn btn-sm btn-primary" id="copyM3u">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制
+      </button>
+    </div>
+    <div class="url-box">
+      <code id="epgUrl" title="点击选中，Ctrl+C 复制">尚未生成</code>
+      <button class="btn btn-sm btn-primary" id="copyEpg">
+        <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制
+      </button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6">
+      提示：HTTP 环境下浏览器可能禁用一键复制，此时请点击地址框手动 Ctrl+C 复制。
+    </p>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TOKEN_KEY = 'gd-iptv-panel-token';
+const THEME_KEY = 'gd-iptv-panel-theme';
+
+/* ============ 主题 ============ */
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem(THEME_KEY, theme);
+}
+function initTheme(){
+  let t = localStorage.getItem(THEME_KEY);
+  if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  applyTheme(t);
+}
+$('themeToggle').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+});
+
+/* ============ Toast ============ */
+let toastTimer = null;
+function toast(msg, kind){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (kind ? ' ' + kind : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    t.className = 'toast' + (kind ? ' ' + kind : '');
+  }, 3200);
+}
+
+/* ============ Token ============ */
+function getToken(){ return localStorage.getItem(TOKEN_KEY) || ''; }
+function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+class AuthError extends Error {}
+
+async function api(path, opts = {}){
+  const headers = { ...(opts.headers || {}) };
+  const token = getToken();
+  if (token) headers['X-Auth-Token'] = token;
+  if (opts.body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const r = await fetch(path, { ...opts, headers });
+  if (r.status === 401) {
+    clearToken();
+    showLogin();
+    throw new AuthError('登录已失效');
+  }
+  return r;
+}
+
+/* ============ 登录 ============ */
+function showLogin(){
+  $('loginOverlay').classList.remove('hidden');
+  $('app').style.display = 'none';
+  setTimeout(() => $('loginUser').focus(), 100);
+}
+function hideLogin(){
+  $('loginOverlay').classList.add('hidden');
+  $('loginErr').textContent = '';
+  $('loginPass').value = '';
+  $('app').style.display = '';
+}
+async function doLogin(){
+  const username = $('loginUser').value.trim();
+  const password = $('loginPass').value;
+  if (!username || !password){
+    $('loginErr').textContent = '请输入用户名和密码';
+    return;
+  }
+  const btn = $('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 验证中…';
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok && j.token) {
+      setToken(j.token);
+      hideLogin();
+      await initApp();
+    } else {
+      $('loginErr').textContent = j.error || j.detail || '登录失败';
+    }
+  } catch (e) {
+    $('loginErr').textContent = '连接失败：' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> 登 录';
+  }
+}
+$('loginBtn').addEventListener('click', doLogin);
+$('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginPass').focus(); });
+
+/* ============ 顶栏按钮 ============ */
+$('refreshBtn').addEventListener('click', () => location.reload());
+
+$('logoutBtn').addEventListener('click', async () => {
+  try { await api('/api/logout', { method: 'POST' }); } catch {}
+  clearToken();
+  showLogin();
+});
+
+/* ============ 配置加载 / 收集 ============ */
+function fillConfig(c){
+  if (c.admin_user !== undefined) $('admin_user').value = c.admin_user;
+  if (c.admin_pass !== undefined) $('admin_pass').value = c.admin_pass;
+
+  if (c.iptv) {
+    $('user').value = c.iptv.user || '';
+    $('passwd').value = c.iptv.passwd || '';
+    $('mac').value = c.iptv.mac || '';
+    $('imei').value = c.iptv.imei || '';
+    $('address').value = c.iptv.address || '';
+    $('interface').value = c.iptv.interface || '';
+  }
+
+  if (c.proxy) {
+    $('udp_proxy').checked = !!c.proxy.udp_proxy;
+    $('rtsp_proxy').checked = !!c.proxy.rtsp_proxy;
+    $('include_catchup').checked = !!c.proxy.include_catchup;
+    if (c.proxy.playseek_template) {
+      $('playseek_template').value = c.proxy.playseek_template;
+    }
+    if (c.proxy.fcc_server !== undefined) {
+      $('fcc_server').value = c.proxy.fcc_server;
+    }
+    if (c.proxy.fcc_type !== undefined) {
+      $('fcc_type').value = c.proxy.fcc_type;
+    }
+  }
+
+  if (c.output) {
+    $('enable_playlist').checked = !!c.output.enable_playlist;
+    $('enable_xmltv').checked = !!c.output.enable_xmltv;
+    $('enable_logo').checked = !!c.output.enable_logo;
+    $('enable_top_channels').checked = !!c.output.enable_top_channels;
+  }
+
+  if (c.external) {
+    $('external_enabled').checked = !!c.external.enabled;
+    $('external_merge').checked = !!c.external.merge_into_playlist;
+    if (c.external.url) $('external_url').value = c.external.url;
+    if (c.external.timeout_seconds) {
+      $('external_timeout').value = c.external.timeout_seconds;
+    }
+  }
+}
+
+function collectConfig(){
+  return {
+    admin_user: $('admin_user').value,
+    admin_pass: $('admin_pass').value,
+    iptv: {
+      user: $('user').value,
+      passwd: $('passwd').value,
+      mac: $('mac').value,
+      imei: $('imei').value,
+      address: $('address').value,
+      interface: $('interface').value || null,
+    },
+    proxy: {
+      udp_proxy: $('udp_proxy').checked,
+      rtsp_proxy: $('rtsp_proxy').checked,
+      include_catchup: $('include_catchup').checked,
+      playseek_template: $('playseek_template').value,
+      fcc_server: $('fcc_server').value,
+      fcc_type: $('fcc_type').value || 'telecom',
+    },
+    output: {
+      enable_playlist: $('enable_playlist').checked,
+      enable_xmltv: $('enable_xmltv').checked,
+      enable_logo: $('enable_logo').checked,
+      enable_top_channels: $('enable_top_channels').checked,
+    },
+    external: {
+      enabled: $('external_enabled').checked,
+      url: $('external_url').value,
+      timeout_seconds: Number($('external_timeout').value || 15),
+      merge_into_playlist: $('external_merge').checked,
+    },
+  };
+}
+
+async function loadConfig(){
+  const r = await api('/api/config');
+  fillConfig(await r.json());
+}
+
+async function saveConfig(){
+  const r = await api('/api/config', {
+    method: 'POST',
+    body: JSON.stringify(collectConfig()),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (j.ok) { toast('配置已保存', 'success'); return true; }
+  toast('保存失败：' + (j.error || '未知错误'), 'error');
+  return false;
+}
+
+$('saveBtn').addEventListener('click', saveConfig);
+
+/* ============ 播放地址 ============ */
+function refreshUrls(){
+  const base = location.origin;
+  $('m3uUrl').textContent = base + '/playlist';
+  $('epgUrl').textContent = base + '/xmltv';
+}
+
+/* ============ 复制（兼容 HTTP） ============ */
+function copyText(text){
+  if (!text || text.includes('尚未')) {
+    toast('请先生成', 'error');
+    return;
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(
+      () => toast('已复制', 'success'),
+      () => fallbackCopy(text)
+    );
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  if (ok) toast('已复制', 'success');
+  else prompt('自动复制失败，请按 Ctrl+C 手动复制：', text);
+}
+
+$('copyM3u').addEventListener('click', () => copyText($('m3uUrl').textContent));
+$('copyEpg').addEventListener('click', () => copyText($('epgUrl').textContent));
+
+['m3uUrl', 'epgUrl'].forEach(id => {
+  $(id).addEventListener('click', function(){
+    const range = document.createRange();
+    range.selectNodeContents(this);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+});
+
+/* ============ 初始化 ============ */
+async function initApp(){
+  try {
+    await loadConfig();
+    refreshUrls();
+  } catch (e) {
+    if (!(e instanceof AuthError)) {
+      toast('加载配置失败：' + e.message, 'error');
+    }
+  }
+}
+
+(async function start(){
+  initTheme();
+  const token = getToken();
+  if (!token) { showLogin(); return; }
+  try {
+    const r = await fetch('/api/auth-check', {
+      headers: { 'X-Auth-Token': token }
+    });
+    const j = await r.json();
+    if (j.ok) { hideLogin(); await initApp(); }
+    else { clearToken(); showLogin(); }
+  } catch {
+    clearToken(); showLogin();
+  }
+})();
+</script>
+</body>
+</html>

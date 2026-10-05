@@ -1,0 +1,48 @@
+[package]
+name = "gd-iptv-panel"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+argh = { git = "https://github.com/google/argh.git", default-features = false }
+des = "0.8"
+ecb = { version = "0.1", features = ["alloc", "block-padding"] }
+hex = "0.4"
+md5 = "0.7"
+rand = "0.8"
+regex-lite = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["cookies", "json"] }
+tokio = "1"
+log = "0.4"
+env_logger = { version = "0.11", default-features = false, features = ["auto-color"] }
+xml-rs = "0.8.19"
+actix-web = { version = "4.5", default-features = false, features = ["macros"] }
+anyhow = "1.0.76"
+chrono = "0.4.31"
+async-stream = "0.3"
+futures-core = "0.3"
+futures-util = "0.3"
+retina = { git = "https://github.com/yujincheng08/retina.git", branch = "iptv", default-features = false }
+rtp-rs = "0.6"
+tokio-util = { version = "0.7.0", features = ["codec", "net"] }
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+socket2 = "0.5"
+
+[target.'cfg(not(any(target_os = "android", target_os = "fuchsia", target_os = "linux")))'.dependencies]
+local-ip-address = "0.6"
+
+[features]
+default = []
+tls = ["reqwest/native-tls"]
+rustls = ["reqwest/rustls-tls"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+panic = "abort"
+codegen-units = 1

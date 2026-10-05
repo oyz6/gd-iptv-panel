@@ -1,0 +1,31 @@
+{
+  "bind": "0.0.0.0:4022",
+  "admin_user": "admin",
+  "admin_pass": "admin",
+  "iptv": {
+    "user": "",
+    "passwd": "",
+    "mac": "",
+    "imei": "",
+    "address": "",
+    "interface": null
+  },
+  "proxy": {
+    "udp_proxy": true,
+    "rtsp_proxy": false,
+    "include_catchup": true,
+    "playseek_template": "${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}"
+  },
+  "output": {
+    "enable_playlist": true,
+    "enable_xmltv": true,
+    "enable_logo": true,
+    "enable_top_channels": true
+  },
+  "external": {
+    "enabled": false,
+    "url": "https://github.nezha.loc.cc/taoiptv.m3u",
+    "timeout_seconds": 15,
+    "merge_into_playlist": true
+  }
+}
