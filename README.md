@@ -1,4 +1,5 @@
-# 广东电信 IPTV 播放列表 + EPG 面板。**单 Rust 二进制**，内置 RTSP/UDP 代理，无需 rtp2httpd。
+# 获取广东电信 IPTV 播放列表 + EPG 面板。
+- **单 Rust 二进制**，内置 RTSP/UDP 代理，无需 rtp2httpd。
 
 | 服务 | 地址 |
 |---|---|
