@@ -1,134 +1,62 @@
-# 广东电信 IPTV 播放列表 + EPG 面板，**单个 Rust 二进制**，内置 RTSP/UDP 代理。
+# 广东电信 IPTV 播放列表 + EPG 面板。**单 Rust 二进制**，内置 RTSP/UDP 代理，无需 rtp2httpd。
 
-[![Release](https://img.shields.io/github/v/release/oyz6/gd-iptv-panel?label=release)](https://github.com/oyz6/gd-iptv-panel/releases/latest)
-[![Build](https://github.com/oyz6/gd-iptv-panel/actions/workflows/release.yml/badge.svg)](https://github.com/oyz6/gd-iptv-panel/actions/workflows/release.yml)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](#许可)
-
-- 面板：`http://<host>:4022/`
-- 播放列表：`http://<host>:4022/playlist`
-- EPG：`http://<host>:4022/xmltv`
+| 服务 | 地址 |
+|---|---|
+| 面板 | `http://<host>:4022/` |
+| 播放列表 | `http://<host>:4022/playlist` |
+| EPG | `http://<host>:4022/xmltv` |
 
 ---
 
-## ✨ 特性
+## 一、前置条件
 
-- 🚀 **单二进制** — 约 1.6 MB，无 Python、无 Node、无 Docker 依赖（可选）
-- 🔌 **内置代理** — RTSP / UDP 组播转 HTTP，**不需要 rtp2httpd / udpxy**
-- 🖥 **Web UI** — 所有配置在浏览器里改，实时保存，深浅主题
-- 📺 **智能分组** — 置顶 / 央视 / 广东 / 卫视 / 少儿 / CGTN / 超清4K / 其他
-- 📌 **置顶副本** — 置顶频道复制一份到顶部，原分组保留
-- 🌐 **外部源合并** — 支持合并第三方 M3U
-- 🔐 **Token 认证** — 面板登录 + API 鉴权
-- 🏗 **多架构** — `linux/amd64` + `linux/arm64`
-- 🎨 **SVG 图标** — 无 emoji 依赖，深浅主题自动切换
+- **IPTV 账号必须由机顶盒注册**。光猫 / 路由器注册的账号用不了。
+- 需要 **已绑定机顶盒的真实 MAC 和账号密码**。
+- 主机需能跑 Linux 二进制（amd64 / arm64），且**与机顶盒同网段**，能收 IGMP 组播。
+- 需要 rtp2httpd？**不需要**，本项目内置代理。
 
----
+**准备信息**：
 
-## 🚀 快速开始
-
-### 前置条件
-
-#### 🔐 IPTV 账号必须由机顶盒注册
-
-- 广东电信 IPTV 的业务认证**绑定机顶盒硬件信息**（MAC 地址）
-- 光猫注册 / 路由器注册的账号**无法用于本项目**
-- 本项目相当于**模拟一台已注册的机顶盒**去运营商侧拉流，必须使用**已绑定机顶盒的真实 MAC 和账号密码**
-
-#### 💻 部署主机
-
-- 任意能跑 Linux 二进制的主机（amd64 / arm64）：
-  - 软路由（OpenWrt / iStoreOS / Armbian）
-  - NAS（群晖 / 威联通 / TrueNAS）
-  - 树莓派 / N100 小主机 / 迷你 PC
-- **网络要求**：主机必须**与机顶盒在同一网络层级**（同 VLAN / 同子网），能够直接收发 IGMP 组播流量
-
-#### 📋 需要准备的信息
-
-| 信息 | 说明 | 从哪获取 |
-|---|---|---|
-| **IPTV 账号 (UserID)** | 运营商下发的宽带账号 | 机顶盒设置界面 / 运营商合同 |
-| **IPTV 密码** | 与 UserID 配套的认证密码 | 机顶盒设置界面 / 运营商合同 |
-| **机顶盒 MAC** | 已注册的机顶盒网卡 MAC | 机顶盒背面标签 / 设置界面 |
+| 项 | 从哪获取 |
+|---|---|
+| IPTV 账号 (UserID) | 机顶盒设置 / 运营商合同 |
+| IPTV 密码 | 同上 |
+| 机顶盒 MAC | 机顶盒背面标签 |
+| FCC 服务器地址 | [中国各地区 FCC 汇总](https://rtp2httpd.com/reference/cn-fcc-collection) |
 
 ---
 
-### 方式一：一键安装脚本（推荐）
+## 二、安装
+
+### 方式 A：一键脚本（推荐）
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/oyz6/gd-iptv-panel/rust/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/oyz6/gd-iptv-panel/main/install.sh | sudo bash
 ```
 
-或先下载再运行：
+管理：
 
 ```bash
-wget https://raw.githubusercontent.com/oyz6/gd-iptv-panel/rust/install.sh
-chmod +x install.sh
-sudo ./install.sh
+sudo ./install.sh upgrade     # 升级
+sudo ./install.sh restart     # 重启
+sudo ./install.sh logs        # 实时日志
+sudo ./install.sh uninstall   # 卸载
 ```
 
-安装完成后访问 `http://<主机IP>:4022/`，默认账号 `admin` / `admin`。
+脚本自动处理：下载、SHA256 校验、systemd 服务、升级失败回滚。
 
-#### 脚本管理命令
-
-```bash
-sudo ./install.sh              # 安装或升级
-sudo ./install.sh upgrade      # 升级到最新版本
-sudo ./install.sh restart      # 重启服务
-sudo ./install.sh status       # 查看状态
-sudo ./install.sh logs         # 查看实时日志
-sudo ./install.sh version      # 查看版本
-sudo ./install.sh uninstall    # 卸载
-```
-
----
-
-### 方式二：手动安装
-
-#### 1. 下载二进制
-
-从 [Releases](https://github.com/oyz6/gd-iptv-panel/releases/latest) 下载对应架构：
+### 方式 B：手动 systemd
 
 ```bash
-# x86_64 (amd64)
+# 1. 下载
 wget https://github.com/oyz6/gd-iptv-panel/releases/latest/download/gd-iptv-panel-linux-amd64
-
-# 或 arm64
-wget https://github.com/oyz6/gd-iptv-panel/releases/latest/download/gd-iptv-panel-linux-arm64
-```
-
-**查看自己主机的架构**：
-
-```bash
-uname -m
-# x86_64  → 用 amd64
-# aarch64 → 用 arm64
-```
-
-#### 2. 加执行权限
-
-```bash
 chmod +x gd-iptv-panel-linux-amd64
-mv gd-iptv-panel-linux-amd64 gd-iptv-panel
-```
 
-#### 3. 直接运行（快速测试）
-
-```bash
-./gd-iptv-panel -c ./config.json
-```
-
-首次运行会自动生成 `config.json`（含默认值），浏览器打开 `http://<主机IP>:4022/` 配置。
-
-#### 4. 安装为 systemd 服务（正式使用）
-
-```bash
-# 安装二进制
-sudo install -m 755 gd-iptv-panel /usr/local/bin/gd-iptv-panel
-
-# 创建配置目录
+# 2. 安装
+sudo install -m 755 gd-iptv-panel-linux-amd64 /usr/local/bin/gd-iptv-panel
 sudo mkdir -p /etc/gd-iptv-panel
 
-# 创建 systemd 服务
+# 3. 创建服务
 sudo tee /etc/systemd/system/gd-iptv-panel.service > /dev/null <<'EOF'
 [Unit]
 Description=gd-iptv-panel
@@ -146,17 +74,12 @@ Environment=RUST_LOG=info,actix_http=warn
 WantedBy=multi-user.target
 EOF
 
-# 启用并启动
+# 4. 启动
 sudo systemctl daemon-reload
 sudo systemctl enable --now gd-iptv-panel
-
-# 查看状态
-sudo systemctl status gd-iptv-panel
 ```
 
----
-
-### 方式三：Docker
+### 方式 C：Docker
 
 ```bash
 docker run -d \
@@ -164,11 +87,11 @@ docker run -d \
   --network host \
   --restart unless-stopped \
   -e TZ=Asia/Shanghai \
-  -v /root/gd-iptv-panel:/data \
+  -v /root/gd-iptv-panel/data:/data \
   ghcr.io/oyz6/gd-iptv-panel:latest
 ```
 
-**docker-compose.yml**：
+或 `docker-compose.yml`：
 
 ```yaml
 services:
@@ -180,95 +103,119 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - IPTV_CONFIG=/data/config.json
+      - RUST_LOG=info,actix_http=warn
     volumes:
       - ./data:/data
 ```
 
 ---
 
-## ⚙️ 首次配置
+## 三、首次配置
 
 浏览器打开 `http://<主机IP>:4022/`，默认账号 `admin` / `admin`。
 
-### 面板填写清单
+面板填写清单：
 
 | 卡片 | 内容 | 必填 |
 |---|---|---|
-| **① 面板登录** | 改掉默认账号密码（**强烈建议**） | 建议 |
-| **② IPTV 账号认证** | UserID / 密码 / 机顶盒 MAC | **必填** |
-| **③ 内置代理** | 勾选 UDP 代理 或 RTSP 代理 | **必填** |
-| **④ 输出选项** | 播放列表 / EPG / 频道图标 / 置顶副本 | 建议全勾 |
-| **⑤ 外部 M3U 源** | 合并第三方 M3U（按需） | 可选 |
+| ① 面板登录 | 改掉默认账号密码 | 建议 |
+| ② IPTV 账号认证 | UserID / 密码 / 机顶盒 MAC | **必填** |
+| ③ 内置代理 | FCC 服务器 / UDP 代理 / RTSP 代理 | **必填** |
+| ④ 输出选项 | 播放列表 / EPG / 图标 / 置顶副本 | 建议全勾 |
+| ⑤ 外部 M3U 源 | 合并第三方 M3U（按需） | 可选 |
 
-点 **保存配置** 后生效。
+**代理方式**：
 
-### 代理方式选择
-
-| 场景 | 推荐 | 说明 |
-|---|---|---|
-| 运营商支持 **UDP 组播** | 勾 **UDP 代理** | 需要主机能收到 IGMP 组播 |
-| 运营商支持 **RTSP** | 勾 **RTSP 代理** | 兼容性更好 |
-| 时移回看 | 两个都勾 + 勾"生成时移回看" | 回看依赖 RTSP |
-
----
-
-## 📺 播放器导入
-
-| 类型 | 地址 |
+| 场景 | 勾选 |
 |---|---|
-| **M3U 播放列表** | `http://<主机IP>:4022/playlist` |
-| **EPG** | `http://<主机IP>:4022/xmltv` |
+| 直播 | UDP 组播代理（走 `/rtp/`，速度快） |
+| 回看 | RTSP 代理 + 生成时移回看 |
 
-**注意**：EPG 通常会自动从 M3U 里的 `x-tvg-url` 属性读取，不用单独配置。如果播放器不自动读，手动填 `/xmltv` 地址。
+**FCC 服务器**：填 `IP:端口`，常见：
 
-### 常见播放器
-
-- **VLC** — 媒体 → 打开网络串流 → 粘贴 M3U 地址
-- **PotPlayer** — 打开 → 打开链接 → 粘贴
-- **TiviMate** — 设置 → 播放列表 → 添加 M3U
-- **云影空蒙 / Kodi / Emby** — 直接添加 M3U 源
+- `8027` — 华为平台
+- `15970` — 中兴 / 烽火平台
 
 ---
 
-## 🔧 命令行参数
+## 四、播放器导入
 
-```text
-Usage: gd-iptv-panel [OPTIONS]
-
-Options:
-  -c, --config <CONFIG>    配置文件路径 [default: ./config.json]
-  -b, --bind <BIND>        监听地址（覆盖配置文件）
-  -h, --help               显示帮助
-  -V, --version            显示版本
+```
+http://<主机IP>:4022/playlist
 ```
 
-**示例**：
+EPG 会自动从 M3U 里读取（`x-tvg-url` 属性）。
 
-```bash
-# 使用默认配置
-./gd-iptv-panel
-
-# 指定配置文件
-./gd-iptv-panel -c /etc/gd-iptv-panel/config.json
-
-# 临时改端口
-./gd-iptv-panel -b 0.0.0.0:9000
-```
+- VLC：媒体 → 打开网络串流
+- PotPlayer：打开 → 打开链接
+- TiviMate：设置 → 播放列表 → 添加 M3U
 
 ---
 
-## 📂 配置文件
+## 五、频道规则
 
-首次运行会自动生成 `config.json`。**大多数配置建议在 Web 面板里改**，只有 `bind` 需要在启动前手动调整。
+### 分组顺序
 
-### 完整字段说明
+```
+置顶 → 央视 → 广东 → 卫视 → 少儿 → CGTN → 超清4K → 其他
+```
+
+### 置顶频道
+
+1. 广东珠江
+2. 岭南戏曲
+3. 大湾区卫视
+4. 广东卫视
+5. 广东4K
+6. CCTV-11
+
+**复制一份到列表顶部，原分组保留**。
+
+### 央视排序
+
+按 CCTV 数字顺序：`CCTV-1` ~ `CCTV-17`
+
+- `CCTV-4K` 紧跟 `CCTV-4` 后
+- `CCTV-5+` 紧跟 `CCTV-5` 后
+- 央视特色频道（世界地理、怀旧剧场等）排最后
+
+### 多线路合并
+
+同一频道的多个画质版本合并为一个频道，输出多个 URL：
+
+```m3u
+#EXTINF:-1 tvg-name="CCTV-1" group-title="央视",CCTV-1
+http://<host>:4022/rtp/...超清源
+http://<host>:4022/rtp/...高清源
+http://<host>:4022/rtp/...标清源
+```
+
+播放器按顺序尝试，第一个能播的就用。
+
+### 显示名清洗
+
+| 原始名 | 显示名 |
+|---|---|
+| `广东4K超高清 窄色域 30` | `广东4K` |
+| `CCTV-5超清` / `CCTV-5体育` | `CCTV-5` |
+| `CCTV5＋体育高清-测试` | `CCTV-5+` |
+| `CCTV4K-25P` | `CCTV-4K` |
+| `CCTV-3综艺` | `CCTV-3` |
+
+---
+
+## 六、配置文件
+
+路径：
+
+- systemd：`/etc/gd-iptv-panel/config.json`
+- Docker：`./data/config.json`
 
 ```json
 {
   "bind": "0.0.0.0:4022",
   "admin_user": "admin",
   "admin_pass": "admin",
-
   "iptv": {
     "user": "XXXXXXXXX",
     "passwd": "XXXXXXXX",
@@ -277,21 +224,20 @@ Options:
     "address": "",
     "interface": null
   },
-
   "proxy": {
     "udp_proxy": true,
     "rtsp_proxy": false,
     "include_catchup": true,
-    "playseek_template": "${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}"
+    "playseek_template": "${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}",
+    "fcc_server": "",
+    "fcc_type": "telecom"
   },
-
   "output": {
     "enable_playlist": true,
     "enable_xmltv": true,
     "enable_logo": true,
     "enable_top_channels": true
   },
-
   "external": {
     "enabled": false,
     "url": "",
@@ -301,58 +247,47 @@ Options:
 }
 ```
 
-### 关键字段
-
-| 字段 | 说明 |
-|---|---|
-| `bind` | 监听地址，**改后需重启服务** |
-| `admin_user` / `admin_pass` | 面板登录凭据 |
-| `iptv.user` / `passwd` / `mac` | IPTV 账号（必填） |
-| `iptv.interface` | 多网卡时指定，如 `eth0`，留 null 走默认 |
-| `proxy.udp_proxy` | 启用 UDP 组播转 HTTP |
-| `proxy.rtsp_proxy` | 启用 RTSP 转 HTTP |
-| `proxy.include_catchup` | 生成时移回看链接 |
-| `output.enable_top_channels` | 是否输出置顶频道副本 |
-| `external.enabled` | 是否合并外部 M3U |
-| `external.url` | 外部 M3U 地址 |
-
-### 修改端口
+改端口：
 
 ```bash
-# 编辑配置文件
 sudo vi /etc/gd-iptv-panel/config.json
-# 把 "bind": "0.0.0.0:4022" 改成 "0.0.0.0:9000"
-
-# 重启服务
+# "bind": "0.0.0.0:9000"
 sudo systemctl restart gd-iptv-panel
 ```
 
 ---
 
-## 🔌 API 端点
+## 七、命令行参数
+
+```
+Usage: gd-iptv-panel [OPTIONS]
+
+  -c, --config <CONFIG>    配置文件路径 [default: ./config.json]
+  -b, --bind <BIND>        监听地址（覆盖配置文件）
+  -h, --help               显示帮助
+  -V, --version            显示版本
+```
+
+---
+
+## 八、API
 
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
 | GET | `/` | ❌ | Web 面板 |
-| POST | `/api/login` | ❌ | 登录，返回 token |
+| POST | `/api/login` | ❌ | 登录 |
 | POST | `/api/logout` | ✅ | 登出 |
 | GET | `/api/auth-check` | ❌ | 校验 token |
-| GET | `/api/config` | ✅ | 读取配置 |
-| POST | `/api/config` | ✅ | 更新配置 |
-| GET | `/api/status` | ✅ | 运行状态 |
-| GET | `/playlist` | ❌ | M3U 播放列表 |
-| GET | `/xmltv` | ❌ | XMLTV EPG |
-| GET | `/logo/{id}.png` | ❌ | 频道图标 |
+| GET | `/api/config` | ✅ | 读配置 |
+| POST | `/api/config` | ✅ | 写配置 |
+| GET | `/api/status` | ✅ | 状态 |
+| GET | `/playlist` | ❌ | M3U |
+| GET | `/xmltv` | ❌ | EPG |
+| GET | `/logo/{id}.png` | ❌ | 图标 |
 | GET | `/rtsp/{path}` | ❌ | RTSP 代理 |
-| GET | `/udp/{addr}` | ❌ | UDP 组播代理 |
+| GET | `/rtp/{addr}` | ❌ | UDP 代理 |
 
-**需要认证的接口**必须带请求头：
-
-```
-X-Auth-Token: <token>
-```
-
-**登录示例**：
+需要认证的接口加请求头 `X-Auth-Token: <token>`。
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:4022/api/login \
@@ -364,187 +299,120 @@ curl -s http://localhost:4022/api/config -H "X-Auth-Token: $TOKEN" | jq
 
 ---
 
-## 🛠 常用命令
+## 九、常用命令
+
+### systemd
 
 ```bash
-# 服务管理
-sudo systemctl start gd-iptv-panel
-sudo systemctl stop gd-iptv-panel
 sudo systemctl restart gd-iptv-panel
 sudo systemctl status gd-iptv-panel
+sudo journalctl -u gd-iptv-panel -f
+```
 
-# 日志
-sudo journalctl -u gd-iptv-panel -f              # 实时
-sudo journalctl -u gd-iptv-panel -n 50           # 最近 50 行
-sudo journalctl -u gd-iptv-panel --since "1h ago" # 最近 1 小时
+### Docker
 
-# 端口检查
-ss -tlnp | grep 4022
-
-# 本机测试
-curl -sI http://127.0.0.1:4022/playlist
+```bash
+docker compose ps
+docker compose logs -f
+docker compose restart
+docker compose up -d --build      # 更新
+docker compose down
 ```
 
 ---
 
-## 🔄 升级
+## 十、升级
 
 ```bash
+# 一键脚本
 sudo ./install.sh upgrade
-```
 
-或手动：
-
-```bash
-# 下载新版
+# systemd 手动
 wget https://github.com/oyz6/gd-iptv-panel/releases/latest/download/gd-iptv-panel-linux-amd64
-chmod +x gd-iptv-panel-linux-amd64
-
-# 停止服务
 sudo systemctl stop gd-iptv-panel
-
-# 替换
 sudo install -m 755 gd-iptv-panel-linux-amd64 /usr/local/bin/gd-iptv-panel
-
-# 启动
 sudo systemctl start gd-iptv-panel
+
+# Docker
+docker compose pull
+docker compose up -d
 ```
 
-配置文件 **不会被覆盖**。
+配置文件不会被覆盖。
 
 ---
 
-## 🔧 常见问题
+## 十一、常见问题
 
-### 认证失败 / 拉不到频道
+**认证失败**：MAC 必须与机顶盒一致；光猫注册的账号用不了。
 
-- **MAC 必须**与运营商绑定的机顶盒一致，不能随便写
-- 光猫 / 路由器里注册的账号**用不了**，必须用机顶盒的账号
-- 多网卡主机尝试在 ② 里填 `interface`（如 `eth0`）
-- 查看日志：`sudo journalctl -u gd-iptv-panel -n 50`
+**端口 4022 被占用**：`ss -tlnp | grep 4022` 查，或改 `bind`。
 
-### 端口 4022 被占用
+**面板打不开**：检查服务状态；放行防火墙（`sudo ufw allow 4022`）。
 
-```bash
-ss -tlnp | grep 4022
-```
+**日志刷 `invalid HTTP version`**：无害，是端口扫描。默认已隐藏。
 
-查出占用进程后停掉，或改配置文件的 `bind` 字段换端口。
+**复制按钮没反应**：HTTP 环境禁用剪贴板 API，点地址框手动 Ctrl+C。
 
-### 面板打不开
+**播放器打不开流**：检查播放器能否访问 `rtp2httpd_url` 里的 IP。
 
-1. 检查服务状态：`sudo systemctl status gd-iptv-panel`
-2. 检查防火墙：
-   - Ubuntu/Debian：`sudo ufw allow 4022`
-   - CentOS/Fedora：`sudo firewall-cmd --add-port=4022/tcp --permanent && sudo firewall-cmd --reload`
-3. 用 `curl -sI http://127.0.0.1:4022/` 本机测试
+**回看不能用**：勾选 RTSP 代理 + 生成时移回看。
 
-### 日志里出现 `invalid HTTP version specified`
-
-**无害**。这是外部端口扫描或非 HTTP 客户端连接导致的。加环境变量可隐藏：
-
-```ini
-[Service]
-Environment=RUST_LOG=info,actix_http=warn
-```
-
-### 复制按钮点了没反应
-
-HTTP 环境下浏览器禁用了剪贴板 API。**点击地址框全选后 `Ctrl+C` 手动复制**即可。或者用 `http://localhost:4022/` 本机访问时可用。
-
-### 播放列表能下载但播放器打不开
-
-- 播放器需要能访问到 `gd-iptv-panel` 的地址
-- 检查防火墙是否放行了 4022
-- 检查播放器是否能访问到 M3U 里的流地址
-
-### SELinux 阻止执行（CentOS / RHEL）
-
-```bash
-sudo semanage fcontext -a -t bin_t "/usr/local/bin/gd-iptv-panel"
-sudo restorecon -v /usr/local/bin/gd-iptv-panel
-```
-
-或临时关闭：`sudo setenforce 0`
+**FCC 不生效**：换当地 FCC 地址（参考上方链接）。
 
 ---
 
-## 🌳 分支说明
-
-本项目使用双分支结构：
-
-| 分支 | 内容 |
-|---|---|
-| **`main`**（当前） | 构建工作流 + 安装脚本 + 本文档 |
-| **`rust`** | 完整源代码（Cargo.toml / src / static） |
-
-### 查看源码
+## 十二、源码构建
 
 ```bash
-git clone -b rust https://github.com/oyz6/gd-iptv-panel.git
+git clone https://github.com/oyz6/gd-iptv-panel.git
 cd gd-iptv-panel
-```
 
-### 自行编译
-
-```bash
-# 安装 Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# 编译（release）
+# 编译
 cargo build --release --features rustls
-
-# 产物在
 ./target/release/gd-iptv-panel
+
+# 测试
+cargo test merge
+
+# 交叉编译 musl
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target x86_64-unknown-linux-musl --features rustls
 ```
 
-### 触发自动构建
+---
 
-GitHub → Actions → **🦀 构建 gd-iptv-panel** → **Run workflow**
+## 十三、项目结构
 
-- `ref`：代码分支，默认 `rust`
-- `tag_suffix`：可选，给 tag 加后缀（如 `beta`）
-
-构建完成后会自动生成 Release，tag 格式为 `v{版本号}-{时间戳}`，例如 `v0.2.0-20261004-2143`。
+```
+gd-iptv-panel/
+├── .github/workflows/release.yml
+├── Cargo.toml
+├── Cargo.lock
+├── Dockerfile
+├── docker-compose.yml
+├── .dockerignore
+├── .gitignore
+├── install.sh
+├── config.example.json
+├── README.md
+├── src/
+│   ├── main.rs          路由入口
+│   ├── config.rs        配置模型
+│   ├── auth.rs          Token 认证
+│   ├── iptv.rs          运营商认证 + 拉频道/EPG
+│   ├── proxy.rs         RTSP / UDP 代理
+│   ├── group.rs         分组 / 置顶
+│   ├── merge.rs         相似频道合并 + 画质识别
+│   ├── external.rs      外部源
+│   └── m3u.rs           M3U / XMLTV 生成
+├── static/index.html    前端面板
+└── data/                运行时数据
+    └── config.json
+```
 
 ---
 
-## 📊 与 Python 版对比
-
-| 项 | Rust 版（本项目） | Python 版 |
-|---|---|---|
-| 二进制大小 | **~1.6 MB** | ~200 MB |
-| 内存占用 | **几 MB** | 50-100 MB |
-| 内置代理 | ✅ | ❌ 需 rtp2httpd |
-| 部署复杂度 | **单文件** | Docker + rtp2httpd |
-| Web UI | ✅ | ✅ |
-| 频道分组 | ✅ | ✅ |
-| 外部源 | ✅ | ✅ |
-
----
-
-## 🗺 路线图
-
-- [x] 单二进制 + 内置代理
-- [x] Web UI（深浅主题）
-- [x] 频道分组 + 置顶副本
-- [x] 外部源合并
-- [ ] EPG 本地缓存（减少上游压力）
-- [ ] 频道分组关键词自定义
-- [ ] 定时任务（每天固定时刻刷新）
-- [ ] 健康检查
-
----
-
-## 📝 许可
+## 十四、许可
 
 仅供个人学习研究使用，请遵守当地法律法规和运营商服务条款。
-
----
-
-## 🙏 致谢
-
-- 生成逻辑参考 [iptv-proxy](https://github.com/yujincheng08/iptv-proxy)
-- 内置代理基于 [retina](https://github.com/yujincheng08/retina)
-- 感谢所有贡献者和反馈用户
-```
