@@ -5,20 +5,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 # 用假 main 提前拉依赖，加快后续构建
 RUN mkdir src && echo "fn main(){}" > src/main.rs \
- && cargo build --release --features rustls \
+ && cargo build --release --locked --features rustls \
  && rm -rf src
 
 COPY src ./src
 COPY static ./static
-RUN touch src/main.rs && cargo build --release --features rustls
+RUN touch src/main.rs && cargo build --release --locked --features rustls
 
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates tzdata \
+    ca-certificates tzdata curl \
  && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /data
 
@@ -28,6 +28,6 @@ COPY --from=builder /build/target/release/gd-iptv-panel /usr/local/bin/gd-iptv-p
 
 EXPOSE 4022
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:4022/api/auth-check >/dev/null || exit 1
+  CMD curl -fsS http://127.0.0.1:4022/api/auth-check >/dev/null || exit 1
 
 CMD ["gd-iptv-panel", "-c", "/data/config.json"]
