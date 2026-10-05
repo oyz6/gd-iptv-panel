@@ -1,0 +1,146 @@
+name: 🦀 构建静态二进制
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（如 v1.0.0，留空则只构建不发布）'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build:
+    name: 构建 ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            artifact: gd-iptv-panel-linux-amd64
+            linker: ''
+          - target: aarch64-unknown-linux-musl
+            artifact: gd-iptv-panel-linux-arm64
+            linker: 'aarch64-linux-gnu-gcc'
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: 安装 musl 工具链
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: 配置 linker
+        if: matrix.linker != ''
+        run: |
+          KEY="CARGO_TARGET_$(echo ${{ matrix.target }} | tr a-z- A-Z_)"
+          echo "${KEY}_LINKER=${{ matrix.linker }}" >> $GITHUB_ENV
+
+      - name: 缓存
+        uses: Swatinem/rust-cache@v2
+
+      - name: 构建
+        run: cargo build --release --target ${{ matrix.target }} --features rustls
+
+      - name: 准备产物
+        run: |
+          cp target/${{ matrix.target }}/release/gd-iptv-panel ${{ matrix.artifact }}
+          chmod +x ${{ matrix.artifact }}
+
+      - name: 上传 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+      - name: 清理历史运行记录
+        # 只在第一个 matrix 上执行一次，避免两个 target 同时删记录打架
+        if: always() && matrix.target == 'x86_64-unknown-linux-musl'
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: ${{ github.workflow }}
+          retain_days: 0
+          keep_minimum_runs: 1
+
+  release:
+    name: 创建 Release
+    needs: build
+    if: inputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 下载所有 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 计算 SHA256
+        run: |
+          cd dist
+          for f in gd-iptv-panel-*; do
+            sha256sum "$f" > "$f.sha256"
+          done
+          ls -la
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          generate_release_notes: true
+          files: |
+            dist/gd-iptv-panel-linux-amd64
+            dist/gd-iptv-panel-linux-amd64.sha256
+            dist/gd-iptv-panel-linux-arm64
+            dist/gd-iptv-panel-linux-arm64.sha256
+          body: |
+            ## 广东电信 IPTV 面板
+
+            广东电信 IPTV 播放列表 + EPG 面板，单个 Rust 二进制，内置 RTSP/UDP 代理。
+
+            ### 📦 下载
+
+            | 平台 | 文件 | 大小 |
+            |---|---|---|
+            | Linux x86_64 | `gd-iptv-panel-linux-amd64` | ~1.6 MB |
+            | Linux arm64 | `gd-iptv-panel-linux-arm64` | ~1.5 MB |
+
+            > 查看自己的架构：`uname -m`
+            > - `x86_64` → 用 amd64
+            > - `aarch64` / `arm64` → 用 arm64
+
+            ### 🚀 使用
+
+            #### 方式一：直接运行（推荐先测试）
+
+            ```bash
+            # 1. 下载（以 x86_64 为例）
+            wget https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag }}/gd-iptv-panel-linux-amd64
+
+            # 2. 加执行权限
+            chmod +x gd-iptv-panel-linux-amd64
+
+            # 3. 改名
+            mv gd-iptv-panel-linux-amd64 gd-iptv-panel
+
+            # 4. 直接运行（首次会自动生成 config.json）
+            ./gd-iptv-panel -c ./config.json
