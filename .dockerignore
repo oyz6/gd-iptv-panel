@@ -1,7 +1,31 @@
+# ─── 构建产物（会导致 build context 巨大）───
 target/
+
+# ─── Git ───
 .git/
 .gitignore
 .github/
-*.md
+
+# ─── 运行时数据（通过 volume 挂载进容器，不需要打进镜像）───
 data/
 config.json
+
+# ─── 编辑器 ───
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── 系统 ───
+.DS_Store
+Thumbs.db
+
+# ─── 文档（README.md 保留，其余排除）───
+*.md
+!README.md
+
+# ─── 日志与环境 ───
+*.log
+.env
+.env.local
