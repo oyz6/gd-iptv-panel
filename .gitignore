@@ -1,3 +1,26 @@
+# ─── Rust ───
 /target
+**/*.rs.bk
+
+# ─── 运行时数据（不入库）───
 /data
 /config.json
+/data/config.json
+
+# ─── 编辑器 ───
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── 系统 ───
+.DS_Store
+Thumbs.db
+
+# ─── 本地环境变量 ───
+.env
+.env.local
+
+# ─── 日志 ───
+*.log
