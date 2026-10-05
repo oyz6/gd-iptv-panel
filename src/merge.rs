@@ -1,6 +1,13 @@
 //! 相似频道分组 + 画质识别。
 use crate::iptv::Channel;
 use std::collections::HashMap;
+use std::sync::LazyLock;
+
+static RE_CCTV_NUM: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r"cctv[\s\-_]*(\d+)").unwrap());
+
+static RE_TRAILING_NUM: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r"\s*\d+\s*$").unwrap());
 
 /// 画质等级（数字越小画质越好）
 ///
@@ -30,11 +37,8 @@ fn normalize_plus(s: &str) -> String {
 /// 解析 `CCTV-N` / `CCTV-N+` / `CCTV-Nplus`
 ///
 /// 返回 `(N, has_plus)`。
-///
-/// **不用正则可选捕获组**，避免 regex-lite 对未匹配的可选组误判为 `Some("")`。
 pub(crate) fn parse_cctv_num(nl: &str) -> Option<(u32, bool)> {
-    let re = regex_lite::Regex::new(r"cctv[\s\-_]*(\d+)").ok()?;
-    let cap = re.captures(nl)?;
+    let cap = RE_CCTV_NUM.captures(nl)?;
     let n = cap[1].parse::<u32>().ok()?;
     let end = cap.get(0)?.end();
     let rest = &nl[end..];
@@ -43,11 +47,6 @@ pub(crate) fn parse_cctv_num(nl: &str) -> Option<(u32, bool)> {
 }
 
 /// 把频道名规范化为「基准名」，用于识别同一频道的不同版本。
-///
-/// 特殊处理：
-///   * `CCTV4K` 独立为 `cctv4k`
-///   * `CCTV-5` 与 `CCTV-5+` 分开（`cctv5` vs `cctv5plus`）
-///   * `CCTV-4欧洲` / `CCTV-4美洲` 保留地域后缀
 fn base_name(name: &str) -> String {
     let name = normalize_plus(name);
     let nl = name.to_lowercase();
@@ -84,9 +83,7 @@ fn base_name(name: &str) -> String {
     n = n.replace("综合", "");
 
     // 去掉末尾孤立的数字（"广东4K超高清 窄色域 30" → "广东4K"）
-    if let Ok(re) = regex_lite::Regex::new(r"\s*\d+\s*$") {
-        n = re.replace(&n, "").to_string();
-    }
+    n = RE_TRAILING_NUM.replace(&n, "").to_string();
 
     n.chars()
         .filter(|c| !c.is_whitespace() && *c != '-' && *c != '_')
@@ -95,9 +92,6 @@ fn base_name(name: &str) -> String {
 }
 
 /// 按基准名分组：`base_name -> Vec<Channel>`
-///
-/// 同一组内保留所有画质版本，按画质从高到低排序。
-/// 调用方（`m3u.rs`）决定如何输出——一个 `#EXTINF` + 多个 URL。
 pub fn group_by_base_name(channels: Vec<Channel>) -> Vec<Vec<Channel>> {
     let mut groups: HashMap<String, Vec<Channel>> = HashMap::new();
     for ch in channels {
@@ -118,18 +112,15 @@ mod tests {
 
     #[test]
     fn test_cctv5_vs_plus() {
-        // CCTV-5 正片
         assert_eq!(base_name("CCTV-5体育"), "cctv5");
         assert_eq!(base_name("CCTV-5超清"), "cctv5");
         assert_eq!(base_name("CCTV-5高清"), "cctv5");
 
-        // CCTV-5+ 独立（半角 / 全角加号 / plus 单词）
         assert_eq!(base_name("CCTV5+体育高清"), "cctv5plus");
         assert_eq!(base_name("CCTV-5+"), "cctv5plus");
         assert_eq!(base_name("CCTV5＋体育高清-测试"), "cctv5plus");
         assert_eq!(base_name("CCTV5plus"), "cctv5plus");
 
-        // 两者不同
         assert_ne!(
             base_name("CCTV-5体育"),
             base_name("CCTV5＋体育高清-测试")
@@ -155,13 +146,11 @@ mod tests {
 
     #[test]
     fn test_base_name_non_cctv() {
-        // 画质后缀去掉了，但 4K 保留
         assert_eq!(base_name("广东4K超高清"), "广东4k");
         assert_eq!(base_name("广东4K超高清 窄色域 30"), "广东4k");
         assert_eq!(base_name("广东卫视4k超高清"), "广东卫视4k");
         assert_eq!(base_name("广东卫视4k超高清25p"), "广东卫视4k");
 
-        // 普通频道
         assert_eq!(base_name("广东珠江"), "广东珠江");
         assert_eq!(base_name("深圳卫视"), "深圳卫视");
     }
