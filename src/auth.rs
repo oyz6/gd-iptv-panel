@@ -30,13 +30,8 @@ impl TokenStore {
         }
         let mut map = self.tokens.lock().unwrap();
         let now = Instant::now();
-        match map.get(token) {
-            Some(exp) if *exp > now => true,
-            _ => {
-                map.remove(token);
-                false
-            }
-        }
+        map.retain(|_, exp| *exp > now);
+        map.contains_key(token)
     }
 
     pub fn revoke(&self, token: &str) {
