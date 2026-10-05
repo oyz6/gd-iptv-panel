@@ -1,7 +1,11 @@
 use anyhow::Result;
 use log::{info, warn};
 use reqwest::Client;
+use std::sync::LazyLock;
 use std::time::Duration;
+
+static RE_ATTR: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r#"([\w-]+)="([^"]*)""#).unwrap());
 
 #[derive(Debug, Clone)]
 pub struct ExternalChannel {
@@ -53,11 +57,10 @@ fn parse(text: &str) -> Vec<ExternalChannel> {
         if line.starts_with("#EXTINF") {
             let attrs = extract_attrs(line);
             let title = line.split(',').last().unwrap_or("").trim().to_string();
-            current = Some(Pending { title, attrs, extra: Vec::new() });
+            current = Some(Pending { title, attrs });
         } else if line.starts_with('#') {
-            if let Some(p) = current.as_mut() {
-                p.extra.push(line.to_string());
-            }
+            // 其他 # 指令（如 #KODIPROP、#EXTVLCOPT）直接忽略
+            continue;
         } else if let Some(p) = current.take() {
             let group = p.attrs.iter()
                 .find(|(k, _)| k == "group-title")
@@ -82,12 +85,11 @@ fn parse(text: &str) -> Vec<ExternalChannel> {
 struct Pending {
     title: String,
     attrs: Vec<(String, String)>,
-    extra: Vec<String>,
 }
 
 fn extract_attrs(line: &str) -> Vec<(String, String)> {
-    let re = regex_lite::Regex::new(r#"([\w-]+)="([^"]*)""#).unwrap();
-    re.captures_iter(line)
+    RE_ATTR
+        .captures_iter(line)
         .filter_map(|c| {
             let key = c.get(1)?.as_str().to_string();
             let val = c.get(2)?.as_str().to_string();
