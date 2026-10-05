@@ -69,13 +69,15 @@ pub(crate) fn rtsp(url: String, if_name: Option<String>) -> impl Stream<Item = R
         tokio::spawn(async move {
             let mut seq = 0u16;
             while let Some(item) = playing.next().await {
-                if let Ok(PacketItem::Rtp(stream)) = item {
-                    if !filter_reordered_seq(&mut seq, stream.sequence_number()) ||
-                        tx.send(stream.into_payload_bytes()).await.is_ok() {
-                        continue;
-                    }
+                // 非 RTP 帧 / 流结束 → 退出
+                let Ok(PacketItem::Rtp(stream)) = item else { break };
+                let next = stream.sequence_number();
+                // 乱序包丢弃；发送失败（下游断连）才退出
+                if filter_reordered_seq(&mut seq, next)
+                    && tx.send(stream.into_payload_bytes()).await.is_err()
+                {
+                    break;
                 }
-                break;
             }
         });
 
@@ -123,23 +125,24 @@ pub(crate) fn udp(multi_addr: SocketAddrV4) -> impl Stream<Item = Result<Bytes>>
         tokio::spawn(async move {
             let mut seq = 0u16;
             while let Some(item) = frames.next().await {
-                if let Ok((bytes, _)) = item {
-                    let mut bytes = bytes.freeze();
-                    if let Ok(rtp) = RtpReader::new(bytes.as_ref()) {
-                        let next = rtp.sequence_number().into();
-                        bytes.advance(rtp.payload_offset());
-                        if !filter_reordered_seq(&mut seq, next) || tx.send(bytes).await.is_ok() {
-                            continue;
-                        }
-                    }
+                // 收到非 UDP / 非 RTP 数据 → 结束
+                let Ok((bytes, _)) = item else { break };
+                let mut bytes = bytes.freeze();
+                let Ok(rtp) = RtpReader::new(bytes.as_ref()) else { break };
+                let next = rtp.sequence_number().into();
+                bytes.advance(rtp.payload_offset());
+                // 乱序包丢弃；发送失败（下游断连）才退出
+                if filter_reordered_seq(&mut seq, next)
+                    && tx.send(bytes).await.is_err()
+                {
+                    break;
                 }
-                frames.get_mut().leave_multicast_v4(
-                    *multi_addr.ip(),
-                    Ipv4Addr::new(0, 0, 0, 0),
-                ).ok();
-                info!("Udp proxy left {}", multi_addr);
-                break;
             }
+            frames.get_mut().leave_multicast_v4(
+                *multi_addr.ip(),
+                Ipv4Addr::new(0, 0, 0, 0),
+            ).ok();
+            info!("Udp proxy left {}", multi_addr);
         });
 
         loop {
