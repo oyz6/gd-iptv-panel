@@ -255,65 +255,53 @@ fn to_xmltv<R: Read>(channels: Vec<Channel>, extra: Option<EventReader<R>>) -> R
     }
 
     // 合并外部 XMLTV
+    // 白名单元素直接透传；非白名单元素（含非中文 title）整体跳过。
+    // skip_depth > 0 表示当前正处在被跳过元素的子树里。
     if let Some(extra) = extra {
+        let mut skip_depth: u32 = 0;
         for e in extra {
             match e {
                 Ok(XmlReadEvent::StartElement {
                     name, attributes, ..
                 }) => {
-                    let name = name.to_string();
-                    let name = name.as_str();
-                    if ![
-                        "channel",
-                        "display-name",
-                        "desc",
-                        "title",
-                        "sub-title",
-                        "programme",
-                    ]
-                    .contains(&name)
-                    {
+                    let local = name.local_name.as_str();
+                    let allowed = matches!(
+                        local,
+                        "channel" | "display-name" | "desc" | "title"
+                            | "sub-title" | "programme"
+                    );
+                    let foreign_title = local == "title"
+                        && attributes
+                            .iter()
+                            .any(|a| a.name.local_name == "lang" && a.value != "chi");
+
+                    if !allowed || foreign_title {
+                        skip_depth += 1;
                         continue;
                     }
-                    let name = if name == "title" {
-                        let mut iter = attributes.iter();
-                        loop {
-                            let attr = match iter.next() {
-                                Some(a) => a,
-                                None => break "title",
-                            };
-                            if attr.name.to_string() == "lang" && attr.value != "chi" {
-                                break "title_extra";
-                            }
-                        }
-                    } else {
-                        name
-                    };
-                    let mut tag = XmlWriteEvent::start_element(name);
+
+                    let mut tag = XmlWriteEvent::start_element(local);
                     for attr in attributes.iter() {
-                        tag = tag.attr(attr.name.borrow(), &attr.value);
+                        tag = tag.attr(&attr.name.local_name, &attr.value);
                     }
                     writer.write(tag)?;
                 }
-                Ok(XmlReadEvent::Characters(content)) => {
+                Ok(XmlReadEvent::Characters(content)) if skip_depth == 0 => {
                     writer.write(XmlWriteEvent::characters(&content))?;
                 }
                 Ok(XmlReadEvent::EndElement { name }) => {
-                    let name = name.to_string();
-                    let name = name.as_str();
-                    if ![
-                        "channel",
-                        "display-name",
-                        "desc",
-                        "title",
-                        "sub-title",
-                        "programme",
-                    ]
-                    .contains(&name)
-                    {
+                    if skip_depth > 0 {
+                        skip_depth -= 1;
                         continue;
                     }
-                    writer.write(XmlWriteEvent::end_element())?;
+                    let local = name.local_name.as_str();
+                    if matches!(
+                        local,
+                        "channel" | "display-name" | "desc" | "title"
+                            | "sub-title" | "programme"
+                    ) {
+                        writer.write(XmlWriteEvent::end_element())?;
+                    }
                 }
                 _ => {}
             }
@@ -386,17 +374,17 @@ async fn logo(state: Data<AppState>, path: Path<String>) -> impl Responder {
 #[get("/rtsp/{tail:.*}")]
 async fn rtsp(
     state: Data<AppState>,
-    mut path: Path<String>,
-    mut params: Query<BTreeMap<String, String>>,
+    path: Path<String>,
+    params: Query<BTreeMap<String, String>>,
 ) -> impl Responder {
     let interface = state.config.read().unwrap().iptv.interface.clone();
-    let path = &mut *path;
-    let params = &mut *params;
-    let mut params = params.iter().map(|(k, v)| format!("{}={}", k, v));
-    let param = params.next().unwrap_or("".to_string());
-    let param = params.fold(param, |o, q| format!("{}&{}", o, q));
+    let query = params
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<_>>()
+        .join("&");
     HttpResponse::Ok().streaming(proxy::rtsp(
-        format!("rtsp://{}?{}", path, param),
+        format!("rtsp://{}?{}", &*path, query),
         interface,
     ))
 }
@@ -405,7 +393,12 @@ async fn rtsp(
 // 代理：UDP 组播（仅 /rtp/）
 // =========================
 #[get("/rtp/{addr}")]
-async fn rtp_udp(addr: Path<String>) -> impl Responder {
+async fn rtp_udp(
+    addr: Path<String>,
+    // m3u 里可能带着 ?fcc=...&fcc-type=...&fec=...，当前 UDP 代理层暂未实现 FCC/FEC，
+    // 这里显式接收并忽略，避免未来实现时再改路由。
+    _params: Query<BTreeMap<String, String>>,
+) -> impl Responder {
     let addr_str: &str = &addr;
     let addr = match SocketAddrV4::from_str(addr_str) {
         Ok(addr) => addr,
