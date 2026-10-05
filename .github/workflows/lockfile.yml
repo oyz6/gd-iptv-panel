@@ -1,0 +1,84 @@
+name: 📌 生成并提交 Cargo.lock
+
+on:
+  # 手动触发（推荐第一次用这个）
+  workflow_dispatch:
+
+  # 当 Cargo.toml 变动时自动跑（此时 lock 通常需要更新）
+  push:
+    paths:
+      - 'Cargo.toml'
+      - '.github/workflows/lockfile.yml'
+
+  # 定期兜底：如果上游 git 依赖或 yanked 版本引起 lock 漂移
+  schedule:
+    - cron: '0 3 * * 0'   # 每周日 UTC 03:00
+
+# 只允许一个实例同时跑，避免并发推送冲突
+concurrency:
+  group: lockfile-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    name: 生成 Cargo.lock
+    runs-on: ubuntu-latest
+    # 只在默认分支上跑，避免在 PR / feature 分支里推来推去
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          # 用默认 GITHUB_TOKEN 就够了；如果你想用 PAT 也可以，
+          # 但注意 PAT 推送会触发下游 workflow（见下方说明）
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 拉完整历史，方便后面 diff 判断
+          fetch-depth: 0
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # 与 release workflow 保持一致，避免两边解析出不同的 lock
+          toolchain: stable
+
+      - name: 缓存 cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: lockfile-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+          restore-keys: |
+            lockfile-${{ runner.os }}-
+
+      - name: 生成 / 更新 Cargo.lock
+        run: |
+          # generate-lockfile 会重新解析 Cargo.toml，
+          # 生成一份满足当前约束的新 lock（如果已存在会被覆盖）
+          cargo generate-lockfile
+
+      - name: 检查是否有变化
+        id: diff
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "✅ Cargo.lock 无变化，跳过提交"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "📝 Cargo.lock 有变化："
+            git --no-pager diff --stat -- Cargo.lock
+          fi
+
+      - name: 提交并推送
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          # [skip ci] 防止这次推送再触发本 workflow 及 release workflow
+          git commit -m "chore(deps): 更新 Cargo.lock [skip ci]"
+          git push
