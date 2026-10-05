@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
-# 用假 main 提前拉依赖，加快后续构建
 RUN mkdir src && echo "fn main(){}" > src/main.rs \
  && cargo build --release --locked --features rustls \
  && rm -rf src
