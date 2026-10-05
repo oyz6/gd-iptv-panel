@@ -1,4 +1,14 @@
-/// 频道分组和置顶逻辑。
+//! 频道分组和置顶逻辑。
+use std::sync::LazyLock;
+
+static RE_CCTV11: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r"cctv[\s\-_]*11(?:\D|$)").unwrap());
+
+static RE_CCTV_NUM: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r"cctv[\s\-_]*(\d+)").unwrap());
+
+static RE_NATURAL_TOKEN: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r"\d+|\D+").unwrap());
 
 /// 置顶优先级（越小越靠前，0 = 不置顶）
 pub fn match_top(name: &str) -> u8 {
@@ -10,10 +20,7 @@ pub fn match_top(name: &str) -> u8 {
     if name.contains("广东") && nl.contains("4k") && !name.contains("卫视") {
         return 5;
     }
-    if regex_lite::Regex::new(r"cctv[\s\-_]*11(?:\D|$)")
-        .unwrap()
-        .is_match(&nl)
-    {
+    if RE_CCTV11.is_match(&nl) {
         return 6;
     }
     0
@@ -23,8 +30,9 @@ const CCTV_SPECIAL: &[&str] = &[
     "风云音乐", "风云足球", "风云剧场", "风云",
     "第一剧场", "怀旧剧场", "世界地理", "女性时尚",
     "兵器科技", "电视指南", "央视精品", "央视台球",
-    "高尔夫网球", "CCTV4K", "cctv4k",
-    "CCTV4欧洲", "CCTV4美洲", "cctv4欧洲", "cctv4美洲",
+    "高尔夫网球",
+    "cctv4k",
+    "cctv4欧洲", "cctv4美洲",
 ];
 
 const GD_LOCAL: &[&str] = &[
@@ -53,19 +61,15 @@ pub fn group_title(name: &str) -> &'static str {
     }
 
     for k in CCTV_SPECIAL {
-        if name.contains(k) || nl.contains(&k.to_lowercase()) {
-            if !name.contains("广东") {
-                return "央视";
-            }
+        if nl.contains(k) && !name.contains("广东") {
+            return "央视";
         }
     }
 
-    if let Ok(re) = regex_lite::Regex::new(r"cctv[\s\-_]*(\d+)") {
-        if let Some(cap) = re.captures(&nl) {
-            if let Ok(n) = cap[1].parse::<u32>() {
-                if (1..=17).contains(&n) {
-                    return "央视";
-                }
+    if let Some(cap) = RE_CCTV_NUM.captures(&nl) {
+        if let Ok(n) = cap[1].parse::<u32>() {
+            if (1..=17).contains(&n) {
+                return "央视";
             }
         }
     }
@@ -112,9 +116,8 @@ pub fn group_index(title: &str) -> usize {
 
 /// 频道自然排序 key："CCTV2" 排在 "CCTV10" 前面
 pub fn natural_key(name: &str) -> Vec<(u8, String)> {
-    let re = regex_lite::Regex::new(r"\d+|\D+").unwrap();
     let mut key = Vec::new();
-    for part in re.find_iter(name).map(|m| m.as_str()) {
+    for part in RE_NATURAL_TOKEN.find_iter(name).map(|m| m.as_str()) {
         if part.is_empty() {
             continue;
         }
