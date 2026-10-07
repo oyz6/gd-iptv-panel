@@ -14,7 +14,16 @@ md5 = "0.7"
 rand = "0.8"
 regex-lite = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["cookies", "json"] }
-tokio = "1"
+tokio = { version = "1", features = [
+    "rt",
+    "rt-multi-thread",
+    "macros",
+    "net",
+    "sync",
+    "time",
+    "io-util",
+    "fs",
+] }
 log = "0.4"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color"] }
 xml-rs = "0.8.19"
