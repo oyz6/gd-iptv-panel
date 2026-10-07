@@ -6,13 +6,14 @@ use des::{
 };
 #[cfg(not(any(target_os = "android", target_os = "fuchsia", target_os = "linux")))]
 use local_ip_address::list_afinet_netifas;
-use log::{debug, info};
+use log::{debug, info, warn};
 use rand::Rng;
 use regex_lite::Regex;
 use reqwest::Client;
 use serde::Deserialize;
 use std::{
     collections::HashMap,
+    path::Path,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::task::JoinSet;
@@ -340,12 +341,42 @@ pub(crate) async fn get_channels(
 }
 
 // =========================
-// 频道图标
+// 频道图标（磁盘缓存）
 // =========================
 
-pub(crate) async fn get_icon(cfg: &Config, id: &str) -> Result<Vec<u8>> {
-    let client = get_client_with_if(cfg.iptv.interface.as_deref())?;
+/// 获取频道图标。
+///
+/// 缓存策略：
+///   * 首次请求：拉上游 → 落盘到 `cache_dir/{id}.png` → 返回
+///   * 后续请求：直接读 `cache_dir/{id}.png`，不再触网
+///
+/// 磁盘缓存是永久性的（logo 几乎不变），需要刷新时调用
+/// `/api/clear-logo-cache` 或手动删除缓存目录。
+pub(crate) async fn get_icon(cfg: &Config, id: &str, cache_dir: &Path) -> Result<Vec<u8>> {
+    // 防御性校验：ChannelID 一定是纯数字，防止路径穿越
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+        return Err(anyhow!("invalid channel id: {}", id));
+    }
 
+    let cache_path = cache_dir.join(format!("{}.png", id));
+
+    // 1. 命中磁盘缓存
+    match tokio::fs::read(&cache_path).await {
+        Ok(bytes) if !bytes.is_empty() => {
+            debug!("logo cache hit: {} ({} bytes)", id, bytes.len());
+            return Ok(bytes);
+        }
+        Ok(_) => {
+            // 空文件视为无效，重新拉
+            warn!("logo cache 为空文件，重新拉取: {}", cache_path.display());
+        }
+        Err(_) => {
+            // 不存在或读失败，走网络
+        }
+    }
+
+    // 2. 未命中，拉上游
+    let client = get_client_with_if(cfg.iptv.interface.as_deref())?;
     let base_url = get_base_url(&client, cfg).await?;
 
     let url = reqwest::Url::parse(&format!(
@@ -354,5 +385,21 @@ pub(crate) async fn get_icon(cfg: &Config, id: &str) -> Result<Vec<u8>> {
     ))?;
 
     let response = client.get(url).send().await?.error_for_status()?;
-    Ok(response.bytes().await?.to_vec())
+    let bytes = response.bytes().await?.to_vec();
+
+    // 3. 落盘（失败不影响本次返回）
+    if bytes.is_empty() {
+        warn!("上游返回空 logo: {}", id);
+        return Ok(bytes);
+    }
+
+    if let Err(e) = tokio::fs::create_dir_all(cache_dir).await {
+        warn!("创建 logo 缓存目录失败 {}: {}", cache_dir.display(), e);
+    } else if let Err(e) = tokio::fs::write(&cache_path, &bytes).await {
+        warn!("写入 logo 缓存失败 {}: {}", cache_path.display(), e);
+    } else {
+        debug!("logo cached: {} ({} bytes)", id, bytes.len());
+    }
+
+    Ok(bytes)
 }
