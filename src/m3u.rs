@@ -2,6 +2,30 @@ use crate::external::{self, ExternalChannel};
 use crate::group;
 use crate::iptv::Channel;
 use crate::merge;
+use std::sync::LazyLock;
+
+static RE_TRAILING_DIGIT: LazyLock<regex_lite::Regex> =
+    LazyLock::new(|| regex_lite::Regex::new(r"\s*\d+\s*$").unwrap());
+
+/// 一个分组的预计算排序信息。
+///
+/// 把 `group_title` / `quality_rank` / `natural_key` 等昂贵计算从
+/// `sort_by` 的比较闭包里挪出来，对每个分组只算一次，
+/// 避免 O(n log n) 次重复计算。
+struct GroupSortInfo {
+    /// 分组在 GROUP_ORDER 里的下标
+    group_idx: usize,
+    /// 是否央视组
+    is_cctv: bool,
+    /// 央视组内排序键
+    cctv_key: (u32, u16, String),
+    /// 非央视组：画质等级
+    quality: u8,
+    /// 非央视组：自然排序 key
+    natural: Vec<(u8, String)>,
+    /// 组内第一个频道 id（最终兜底）
+    id: u64,
+}
 
 /// 生成 M3U 播放列表。
 ///
@@ -19,52 +43,81 @@ pub fn build_playlist(
     host: &str,
 ) -> String {
     // 1. 分组
-    let mut groups = merge::group_by_base_name(channels_in);
+    let groups = merge::group_by_base_name(channels_in);
 
-    // 2. 排序
-    groups.sort_by(|a, b| {
-        // 2.1 分组
-        let ga = group::group_index(group::group_title(&a[0].name));
-        let gb = group::group_index(group::group_title(&b[0].name));
-        if ga != gb {
-            return ga.cmp(&gb);
-        }
+    // 2. 为每个分组预先算好排序 key（只算一次）
+    let mut ranked: Vec<(GroupSortInfo, Vec<Channel>)> = groups
+        .into_iter()
+        .map(|chs| {
+            let name = &chs[0].name;
+            let gt = group::group_title(name);
+            let is_cctv = gt == "央视";
+            let info = GroupSortInfo {
+                group_idx: group::group_index(gt),
+                is_cctv,
+                cctv_key: if is_cctv {
+                    extract_cctv_key(name)
+                } else {
+                    (0, 0, String::new())
+                },
+                quality: if is_cctv { 0 } else { merge::quality_rank(name) },
+                natural: if is_cctv {
+                    Vec::new()
+                } else {
+                    group::natural_key(name)
+                },
+                id: chs[0].id,
+            };
+            (info, chs)
+        })
+        .collect();
 
-        // 2.2 央视组内：按 CCTV 数字排序
-        if group::group_title(&a[0].name) == "央视" {
-            let ka = extract_cctv_key(&a[0].name);
-            let kb = extract_cctv_key(&b[0].name);
-            return ka.cmp(&kb).then_with(|| a[0].id.cmp(&b[0].id));
-        }
-
-        // 2.3 其他组：画质 + 自然排序
-        let qa = merge::quality_rank(&a[0].name);
-        let qb = merge::quality_rank(&b[0].name);
-        qa.cmp(&qb)
-            .then_with(|| group::natural_key(&a[0].name).cmp(&group::natural_key(&b[0].name)))
-            .then_with(|| a[0].id.cmp(&b[0].id))
+    // 3. 排序：比较的是预计算好的 key，不再有字符串分配 / 正则
+    ranked.sort_by(|(a, _), (b, _)| {
+        a.group_idx.cmp(&b.group_idx).then_with(|| {
+            if a.is_cctv {
+                a.cctv_key
+                    .cmp(&b.cctv_key)
+                    .then_with(|| a.id.cmp(&b.id))
+            } else {
+                a.quality
+                    .cmp(&b.quality)
+                    .then_with(|| a.natural.cmp(&b.natural))
+                    .then_with(|| a.id.cmp(&b.id))
+            }
+        })
     });
 
     let mut out = String::from("#EXTM3U\n");
 
-    // 3. 置顶副本
+    // 4. 置顶副本
     if include_top {
-        let mut tops: Vec<&Vec<Channel>> = groups
+        let mut tops: Vec<(&(GroupSortInfo, Vec<Channel>), u8)> = ranked
             .iter()
-            .filter(|g| g.iter().any(|c| group::match_top(&c.name) > 0))
+            .filter_map(|entry| {
+                let rank = entry
+                    .1
+                    .iter()
+                    .map(|c| group::match_top(&c.name))
+                    .min()
+                    .unwrap_or(0);
+                if rank > 0 {
+                    Some((entry, rank))
+                } else {
+                    None
+                }
+            })
             .collect();
-        tops.sort_by_key(|g| {
-            let rank = g
-                .iter()
-                .map(|c| group::match_top(&c.name))
-                .min()
-                .unwrap_or(0);
-            (rank, group::natural_key(&g[0].name))
+
+        // sort_by_cached_key：key 只对每个入选组算一次
+        tops.sort_by_cached_key(|(entry, rank)| {
+            (*rank, group::natural_key(&entry.1[0].name))
         });
-        for chs in tops {
+
+        for (entry, _) in tops {
             write_group(
                 &mut out,
-                chs,
+                &entry.1,
                 "置顶",
                 include_catchup,
                 playseek_template,
@@ -74,8 +127,8 @@ pub fn build_playlist(
         }
     }
 
-    // 4. 正常分组
-    for chs in &groups {
+    // 5. 正常分组
+    for (_, chs) in &ranked {
         let grp = group::group_title(&chs[0].name);
         write_group(
             &mut out,
@@ -88,7 +141,7 @@ pub fn build_playlist(
         );
     }
 
-    // 5. 外部源
+    // 6. 外部源
     for ch in external {
         for line in external::to_m3u_lines(ch) {
             out.push_str(&line);
@@ -195,9 +248,8 @@ fn clean_display_name(name: &str) -> String {
         n = n.replace(w, "");
     }
 
-    if let Ok(re) = regex_lite::Regex::new(r"\s*\d+\s*$") {
-        n = re.replace(&n, "").to_string();
-    }
+    // 静态正则：不再每次编译
+    n = RE_TRAILING_DIGIT.replace(&n, "").to_string();
 
     let n = n.trim().trim_end_matches(['-', '_', ' ']).trim().to_string();
     if n.is_empty() {
