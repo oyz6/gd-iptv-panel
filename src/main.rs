@@ -51,6 +51,8 @@ pub struct AppState {
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
     pub tokens: TokenStore,
+    /// ChannelID -> logo PNG 的磁盘缓存目录
+    pub logo_cache_dir: PathBuf,
 }
 
 // =========================
@@ -171,8 +173,36 @@ async fn api_status(state: Data<AppState>, req: HttpRequest) -> impl Responder {
         "ok": true,
         "groups": groups,
         "config_path": state.config_path.display().to_string(),
+        "logo_cache_dir": state.logo_cache_dir.display().to_string(),
         "bind": cfg.bind,
     }))
+}
+
+// =========================
+// API：清理 logo 缓存
+// =========================
+#[post("/api/clear-logo-cache")]
+async fn api_clear_logo_cache(state: Data<AppState>, req: HttpRequest) -> impl Responder {
+    if require_auth(&state, &req).is_err() {
+        return HttpResponse::Unauthorized().finish();
+    }
+    let dir = &state.logo_cache_dir;
+    match tokio::fs::remove_dir_all(dir).await {
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({
+            "ok": true,
+            "message": format!("已清空 logo 缓存：{}", dir.display())
+        })),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            HttpResponse::Ok().json(serde_json::json!({
+                "ok": true,
+                "message": "缓存目录不存在，视为已清空"
+            }))
+        }
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "ok": false,
+            "error": e.to_string()
+        })),
+    }
 }
 
 // =========================
@@ -282,6 +312,8 @@ fn to_xmltv<R: Read>(channels: Vec<Channel>, extra: Option<EventReader<R>>) -> R
 
                     let mut tag = XmlWriteEvent::start_element(local);
                     for attr in attributes.iter() {
+                        // 注意：attr() 的 name 参数是泛型 Into<Name>，
+                        // 传 &String 不会自动 deref，必须显式 .as_str()
                         tag = tag.attr(attr.name.local_name.as_str(), &attr.value);
                     }
                     writer.write(tag)?;
@@ -354,7 +386,7 @@ async fn xmltv(state: Data<AppState>, req: HttpRequest) -> impl Responder {
 }
 
 // =========================
-// Logo
+// Logo（磁盘缓存 + 客户端缓存头）
 // =========================
 #[get("/logo/{id}.png")]
 async fn logo(state: Data<AppState>, path: Path<String>) -> impl Responder {
@@ -362,8 +394,12 @@ async fn logo(state: Data<AppState>, path: Path<String>) -> impl Responder {
     if !cfg.output.enable_logo {
         return HttpResponse::NotFound().body("logo disabled");
     }
-    match get_icon(&cfg, &path).await {
-        Ok(icon) => HttpResponse::Ok().content_type("image/png").body(icon),
+    match get_icon(&cfg, &path, &state.logo_cache_dir).await {
+        Ok(icon) => HttpResponse::Ok()
+            .content_type("image/png")
+            // 让客户端也缓存一天，进一步减少请求
+            .insert_header(("Cache-Control", "public, max-age=86400"))
+            .body(icon),
         Err(e) => HttpResponse::NotFound().body(format!("Error: {}", e)),
     }
 }
@@ -422,14 +458,32 @@ async fn main() -> std::io::Result<()> {
         cfg.bind = bind;
     }
 
+    // logo 缓存目录：与配置文件同级
+    let logo_cache_dir = config_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("logo-cache");
+
     let bind = cfg.bind.clone();
     info!("配置文件：{}", config_path.display());
     info!("监听地址：{}", bind);
+    info!("logo 缓存目录：{}", logo_cache_dir.display());
+
+    // 预创建缓存目录，及早暴露权限问题（失败不致命）
+    if let Err(e) = std::fs::create_dir_all(&logo_cache_dir) {
+        warn!(
+            "无法预创建 logo 缓存目录 {}：{}（服务继续启动，运行时按需重试）",
+            logo_cache_dir.display(),
+            e
+        );
+    }
 
     let state = Data::new(AppState {
         config: RwLock::new(cfg),
         config_path,
         tokens: TokenStore::new(),
+        logo_cache_dir,
     });
 
     HttpServer::new(move || {
@@ -444,6 +498,7 @@ async fn main() -> std::io::Result<()> {
             .service(api_get_config)
             .service(api_set_config)
             .service(api_status)
+            .service(api_clear_logo_cache)
             // 内容
             .service(playlist)
             .service(xmltv)
