@@ -226,48 +226,46 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
     </div>
   </div>
 
-  <!-- ③ 内置代理 -->
-  <div class="card">
-    <h2>③ 内置代理</h2>
+<!-- ③ 内置代理 -->
+<div class="card">
+  <h2>③ 内置代理</h2>
 
-    <!-- FCC 服务器 -->
-    <div class="row">
-      <div class="field">
-        <label>FCC 服务器地址</label>
-        <input id="fcc_server" placeholder="例如 115.233.40.137:8027">
-        <small>
-          FCC 快速换台服务器，格式为 <code>IP:端口</code>。留空则不启用 FCC。
-          可参考
-          <a href="https://rtp2httpd.com/reference/cn-fcc-collection" target="_blank" rel="noopener noreferrer">中国各地区 FCC 服务器地址汇总</a>
-          查找本地可用地址。
-        </small>
-        <small style="margin-top:4px">
-          通常 <code>8027</code> 端口为华为平台，<code>15970</code> 端口为中兴 / 烽火平台。
-        </small>
-      </div>
-      <div class="field">
-        <label>FCC 协议类型</label>
-        <input id="fcc_type" placeholder="telecom">
-        <small>默认 <code>telecom</code>；华为平台可试 <code>huawei</code></small>
-      </div>
+  <!-- FCC 服务器 -->
+  <div class="row">
+    <div class="field">
+      <label for="fcc_server">FCC 服务器地址</label>
+      <input id="fcc_server" type="text" inputmode="url"
+             placeholder="例如 115.233.40.137:8027">
+      <small>
+        FCC 快速换台服务器，格式为 <code>IP:端口</code>。留空则不启用 FCC。
+        <a href="https://rtp2httpd.com/reference/cn-fcc-collection"
+           target="_blank" rel="noopener noreferrer">查找本地可用地址</a>。
+      </small>
     </div>
-
-    <div class="check-row">
-      <label><input type="checkbox" id="udp_proxy"> UDP 组播代理（igmp:// → http:///rtp/）</label>
-      <label><input type="checkbox" id="rtsp_proxy"> RTSP 代理（rtsp:// → http:///rtsp/）</label>
-    </div>
-    <div class="check-row">
-      <label><input type="checkbox" id="include_catchup"> 生成时移回看（catchup）</label>
-    </div>
-    <div class="row">
-      <div class="field">
-        <label>PLAYSEEK 模板</label>
-        <input id="playseek_template" placeholder="${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}">
-        <small>时移回看的时间占位符</small>
-      </div>
-      <div class="field"></div>
+    <div class="field">
+      <label for="fcc_type">FCC 协议类型</label>
+      <input id="fcc_type" type="text" placeholder="telecom">
+      <small>默认 <code>telecom</code>；华为平台可试 <code>huawei</code></small>
     </div>
   </div>
+
+  <div class="check-row">
+    <label><input type="checkbox" id="udp_proxy"> UDP 组播代理（igmp:// → http:///rtp/）</label>
+    <label><input type="checkbox" id="rtsp_proxy"> RTSP 代理（rtsp:// → http:///rtsp/）</label>
+  </div>
+  <div class="check-row">
+    <label><input type="checkbox" id="include_catchup"> 生成时移回看（catchup）</label>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label for="playseek_template">PLAYSEEK 模板</label>
+      <input id="playseek_template" type="text"
+             placeholder="${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}">
+      <small>时移回看的时间占位符</small>
+    </div>
+    <div class="field" aria-hidden="true"></div>
+  </div>
+</div>
 
   <!-- ④ 输出选项 -->
   <div class="card">
