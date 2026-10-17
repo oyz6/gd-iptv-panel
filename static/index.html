@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IPTV 面板</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2314b8a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='7' width='20' height='15' rx='2' ry='2'/%3E%3Cpolyline points='17 2 12 7 7 2'/%3E%3C/svg%3E">
+<script>
+/* 首帧前应用主题，避免 FOUC */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('gd-iptv-panel-theme'); } catch (e) {}
+  if (!t) {
+    try { t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+    catch (e) { t = 'dark'; }
+  }
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 <style>
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#0b0f19;--panel:#111827;--panel-2:#0f172a;--border:rgba(255,255,255,.08);
   --text:#f1f5f9;--muted:#94a3b8;--primary:#14b8a6;--primary-h:#2dd4bf;
   --danger:#ef4444;--success:#10b981;--input:#1e293b;--input-b:#334155;
@@ -17,6 +30,7 @@
   --code:#0a0e17;--code-text:#cbd5e1;
 }
 :root[data-theme="light"]{
+  color-scheme:light;
   --bg:#f8fafc;--panel:#ffffff;--panel-2:#f1f5f9;--border:rgba(15,23,42,.08);
   --text:#0f172a;--muted:#64748b;--primary:#0d9488;--primary-h:#0f766e;
   --danger:#dc2626;--success:#059669;--input:#f8fafc;--input-b:#cbd5e1;
@@ -96,7 +110,7 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(24px);
   padding:11px 18px;border-radius:12px;background:var(--panel);
   border:1px solid var(--border);font-size:13.5px;font-weight:600;
-  box-shadow:0 20px 50px rgba(0,0,0,.3);opacity:0;transition:.3s;z-index:100;
+  box-shadow:0 20px 50px rgba(0,0,0,.3);opacity:0;transition:.3s;z-index:1100;
   pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.success{border-color:rgba(16,185,129,.5)}
@@ -140,9 +154,9 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
     </div>
     <h2>🔒 IPTV 面板</h2>
     <p>请输入账号密码登录</p>
-    <input id="loginUser" placeholder="用户名" autocomplete="username">
-    <input id="loginPass" type="password" placeholder="密码" autocomplete="current-password">
-    <div class="err" id="loginErr"></div>
+    <input id="loginUser" placeholder="用户名" aria-label="用户名" autocomplete="username">
+    <input id="loginPass" type="password" placeholder="密码" aria-label="密码" autocomplete="current-password">
+    <div class="err" id="loginErr" role="alert" aria-live="assertive"></div>
     <button class="btn btn-primary" id="loginBtn">
       <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
       登 录
@@ -178,11 +192,11 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
     <h2>① 面板登录</h2>
     <div class="row">
       <div class="field">
-        <label>面板用户名</label>
-        <input id="admin_user" placeholder="admin">
+        <label for="admin_user">面板用户名</label>
+        <input id="admin_user" type="text" placeholder="admin">
       </div>
       <div class="field">
-        <label>面板密码</label>
+        <label for="admin_pass">面板密码</label>
         <input id="admin_pass" type="password" placeholder="admin">
         <small>修改后下次登录生效（当前会话保持）</small>
       </div>
@@ -194,78 +208,81 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
     <h2>② IPTV 账号认证</h2>
     <div class="row">
       <div class="field">
-        <label>IPTV 账号 (UserID)</label>
-        <input id="user" placeholder="07551234567">
+        <label for="user">IPTV 账号 (UserID)</label>
+        <input id="user" type="text" placeholder="07551234567">
       </div>
       <div class="field">
-        <label>IPTV 密码</label>
+        <label for="passwd">IPTV 密码</label>
         <input id="passwd" type="password" placeholder="12345678">
       </div>
     </div>
     <div class="row">
       <div class="field">
-        <label>机顶盒 MAC</label>
-        <input id="mac" placeholder="a3:11:22:33:44:b3">
+        <label for="mac">机顶盒 MAC</label>
+        <input id="mac" type="text" placeholder="a3:11:22:33:44:b3">
         <small>必须与运营商绑定的机顶盒一致</small>
       </div>
       <div class="field">
-        <label>接口（可选）</label>
-        <input id="interface" placeholder="eth0 / enp6s18 / 留空">
+        <label for="interface">接口（可选）</label>
+        <input id="interface" type="text" placeholder="eth0 / enp6s18 / 留空">
         <small>多网卡时指定认证请求的出站接口</small>
       </div>
     </div>
     <div class="row">
       <div class="field">
-        <label>IMEI（可选）</label>
-        <input id="imei" placeholder="">
+        <label for="imei">IMEI（可选）</label>
+        <input id="imei" type="text" placeholder="">
       </div>
       <div class="field">
-        <label>ADDRESS（可选）</label>
-        <input id="address" placeholder="">
+        <label for="address">ADDRESS（可选）</label>
+        <input id="address" type="text" placeholder="">
       </div>
     </div>
   </div>
 
-<!-- ③ 内置代理 -->
-<div class="card">
-  <h2>③ 内置代理</h2>
+  <!-- ③ 内置代理 -->
+  <div class="card">
+    <h2>③ 内置代理</h2>
 
-  <!-- FCC 服务器 -->
-  <div class="row">
-    <div class="field">
-      <label for="fcc_server">FCC 服务器地址</label>
-      <input id="fcc_server" type="text" inputmode="url"
-             placeholder="例如 115.233.40.137:8027">
-      <small>
-        FCC 快速换台服务器，格式为 <code>IP:端口</code>。留空则不启用 FCC。
-        <a href="https://rtp2httpd.com/reference/cn-fcc-collection"
-           target="_blank" rel="noopener noreferrer">查找本地可用地址</a>。
-      </small>
+    <!-- FCC 服务器 -->
+    <div class="row">
+      <div class="field">
+        <label for="fcc_server">FCC 服务器地址</label>
+        <input id="fcc_server" type="text" placeholder="例如 115.233.40.137:8027">
+        <small>
+          FCC 快速换台服务器，格式为 <code>IP:端口</code>。留空则不启用 FCC。
+          <a href="https://rtp2httpd.com/reference/cn-fcc-collection"
+             target="_blank" rel="noopener noreferrer">查找本地可用地址</a>。
+        </small>
+      </div>
+      <div class="field">
+        <label for="fcc_type">FCC 协议类型</label>
+        <input id="fcc_type" type="text" list="fcc-types" placeholder="telecom">
+        <datalist id="fcc-types">
+          <option value="telecom"></option>
+          <option value="huawei"></option>
+        </datalist>
+        <small>默认 <code>telecom</code>；华为平台可试 <code>huawei</code></small>
+      </div>
     </div>
-    <div class="field">
-      <label for="fcc_type">FCC 协议类型</label>
-      <input id="fcc_type" type="text" placeholder="telecom">
-      <small>默认 <code>telecom</code>；华为平台可试 <code>huawei</code></small>
-    </div>
-  </div>
 
-  <div class="check-row">
-    <label><input type="checkbox" id="udp_proxy"> UDP 组播代理（igmp:// → http:///rtp/）</label>
-    <label><input type="checkbox" id="rtsp_proxy"> RTSP 代理（rtsp:// → http:///rtsp/）</label>
-  </div>
-  <div class="check-row">
-    <label><input type="checkbox" id="include_catchup"> 生成时移回看（catchup）</label>
-  </div>
-  <div class="row">
-    <div class="field">
-      <label for="playseek_template">PLAYSEEK 模板</label>
-      <input id="playseek_template" type="text"
-             placeholder="${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}">
-      <small>时移回看的时间占位符</small>
+    <div class="check-row">
+      <label><input type="checkbox" id="udp_proxy"> UDP 组播代理（igmp:// → http://&lt;host&gt;/rtp/...）</label>
+      <label><input type="checkbox" id="rtsp_proxy"> RTSP 代理（rtsp:// → http://&lt;host&gt;/rtsp/...）</label>
     </div>
-    <div class="field" aria-hidden="true"></div>
+    <div class="check-row">
+      <label><input type="checkbox" id="include_catchup"> 生成时移回看（catchup）</label>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="playseek_template">PLAYSEEK 模板</label>
+        <input id="playseek_template" type="text"
+               placeholder="${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}">
+        <small>时移回看的时间占位符</small>
+      </div>
+      <div class="field" aria-hidden="true"></div>
+    </div>
   </div>
-</div>
 
   <!-- ④ 输出选项 -->
   <div class="card">
@@ -287,11 +304,11 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
     </div>
     <div class="row">
       <div class="field">
-        <label>外部 M3U 地址</label>
-        <input id="external_url" placeholder="https://...">
+        <label for="external_url">外部 M3U 地址</label>
+        <input id="external_url" type="text" inputmode="url" placeholder="https://...">
       </div>
       <div class="field">
-        <label>下载超时（秒）</label>
+        <label for="external_timeout">下载超时（秒）</label>
         <input id="external_timeout" type="number" min="3" max="120" value="15">
       </div>
     </div>
@@ -330,22 +347,24 @@ h1 .logo-icon{width:22px;height:22px;stroke:var(--primary);fill:none;stroke-widt
   </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
 const $ = id => document.getElementById(id);
 const TOKEN_KEY = 'gd-iptv-panel-token';
 const THEME_KEY = 'gd-iptv-panel-theme';
 
+/* ============ 安全存储（Safari 无痕会抛异常） ============ */
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k){ try { localStorage.removeItem(k); } catch (e) {} },
+};
+
 /* ============ 主题 ============ */
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem(THEME_KEY, theme);
-}
-function initTheme(){
-  let t = localStorage.getItem(THEME_KEY);
-  if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  applyTheme(t);
+  store.set(THEME_KEY, theme);
 }
 $('themeToggle').addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -365,9 +384,9 @@ function toast(msg, kind){
 }
 
 /* ============ Token ============ */
-function getToken(){ return localStorage.getItem(TOKEN_KEY) || ''; }
-function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
-function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+function getToken(){ return store.get(TOKEN_KEY) || ''; }
+function setToken(t){ store.set(TOKEN_KEY, t); }
+function clearToken(){ store.del(TOKEN_KEY); }
 
 class AuthError extends Error {}
 
@@ -435,10 +454,13 @@ $('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin
 $('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginPass').focus(); });
 
 /* ============ 顶栏按钮 ============ */
-$('refreshBtn').addEventListener('click', () => location.reload());
+$('refreshBtn').addEventListener('click', async () => {
+  try { await initApp(); toast('已刷新', 'success'); }
+  catch (e) { toast('刷新失败：' + e.message, 'error'); }
+});
 
 $('logoutBtn').addEventListener('click', async () => {
-  try { await api('/api/logout', { method: 'POST' }); } catch {}
+  try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
   clearToken();
   showLogin();
 });
@@ -518,7 +540,7 @@ function collectConfig(){
     external: {
       enabled: $('external_enabled').checked,
       url: $('external_url').value,
-      timeout_seconds: Number($('external_timeout').value || 15),
+      timeout_seconds: Math.min(120, Math.max(3, Number($('external_timeout').value) || 15)),
       merge_into_playlist: $('external_merge').checked,
     },
   };
@@ -595,9 +617,9 @@ $('copyEpg').addEventListener('click', () => copyText($('epgUrl').textContent));
 
 /* ============ 初始化 ============ */
 async function initApp(){
+  refreshUrls();
   try {
     await loadConfig();
-    refreshUrls();
   } catch (e) {
     if (!(e instanceof AuthError)) {
       toast('加载配置失败：' + e.message, 'error');
@@ -606,7 +628,6 @@ async function initApp(){
 }
 
 (async function start(){
-  initTheme();
   const token = getToken();
   if (!token) { showLogin(); return; }
   try {
@@ -616,7 +637,7 @@ async function initApp(){
     const j = await r.json();
     if (j.ok) { hideLogin(); await initApp(); }
     else { clearToken(); showLogin(); }
-  } catch {
+  } catch (e) {
     clearToken(); showLogin();
   }
 })();
